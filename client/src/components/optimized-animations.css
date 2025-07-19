@@ -1,0 +1,108 @@
+/* Optimized CSS animations for better performance */
+
+/* Use transform and opacity for smooth animations */
+.skill-mastery-animated {
+  will-change: transform, opacity;
+  transform: translateZ(0); /* Force hardware acceleration */
+  backface-visibility: hidden;
+}
+
+/* Optimized progress bar animations */
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f1c40f, #8e44ad);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width;
+  transform: translateZ(0);
+}
+
+/* Optimized neon pulse effect */
+.neon-pulse {
+  animation: neon-pulse-optimized 2s ease-in-out infinite alternate;
+}
+
+@keyframes neon-pulse-optimized {
+  from {
+    filter: drop-shadow(0 0 5px currentColor);
+  }
+  to {
+    filter: drop-shadow(0 0 10px currentColor);
+  }
+}
+
+/* Optimized cyberpunk flicker */
+.cyberpunk-flicker {
+  animation: cyberpunk-flicker-optimized 3s linear infinite;
+}
+
+@keyframes cyberpunk-flicker-optimized {
+  0%,
+  98% {
+    opacity: 1;
+  }
+  99% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Optimized level up animation */
+.level-up-animation {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) translateZ(0);
+  background-color: rgba(15, 17, 23, 0.95);
+  color: #f1c40f;
+  padding: 25px;
+  border-radius: 12px;
+  text-align: center;
+  animation: level-up-optimized 3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1000;
+  border: 2px solid #8e44ad;
+  will-change: transform, opacity;
+}
+
+@keyframes level-up-optimized {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8) translateZ(0);
+  }
+  10%,
+  90% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) translateZ(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8) translateZ(0);
+  }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .neon-pulse,
+  .cyberpunk-flicker {
+    animation: none;
+  }
+
+  .progress-fill {
+    transition: none;
+  }
+}
+
+/* Optimize for 60fps */
+* {
+  box-sizing: border-box;
+}
+
+/* Prevent layout thrashing */
+.progress-container {
+  contain: layout style paint;
+}
+
+.timer-display {
+  contain: layout style;
+}

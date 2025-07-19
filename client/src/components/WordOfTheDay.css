@@ -1,0 +1,215 @@
+.word-of-the-day-widget {
+  background-color: #000;
+  color: #8e44ad;
+  padding: 25px;
+  border-radius: 12px;
+  text-align: left;
+  max-width: 90%;
+  width: 100%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  font-family: "Orbitron", sans-serif;
+}
+
+/* Title */
+.word-of-the-day-widget h3 {
+  font-size: 24px;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(142, 68, 173, 0.5);
+  letter-spacing: 2px;
+  text-align: center;
+}
+
+/* Kanji Styling */
+.kanji-info {
+  background: #000;
+  padding: 20px;
+  border-radius: 8px;/*
+  border: 1px solid rgba(142, 68, 173, 0.3);
+  */margin-bottom: 20px;
+}
+
+.kanji-info h4 {
+  font-size: 28px;
+  color: #f1c40f;
+  text-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.kanji-info p {
+  font-size: 16px;
+  line-height: 1.7;
+  margin: 10px 0;
+  color: #fff;
+}
+
+.kanji-info .meaning {
+  color: #f1c40f;
+  font-weight: bold;
+}
+
+.kanji-info .pronunciation {
+  color: #8e44ad;
+  font-style: italic;
+}
+
+/* Examples List */
+.kanji-info ul {
+  list-style-type: none;
+  padding-left: 0;
+  margin-top: 15px;
+}
+
+.kanji-info li {
+  font-size: 16px;
+  margin-bottom: 10px;
+  padding: 12px;
+  background-color: rgba(142, 68, 173, 0.1);
+  border-radius: 8px;
+  transition: transform 0.3s ease;
+}
+
+.kanji-info li:hover {
+  transform: translateY(-2px);
+}
+
+.kanji-info li .example-word {
+  color: #f1c40f;
+  font-weight: bold;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.kanji-info li .example-meaning {
+  color: #fff;
+}
+
+/* Speak Button */
+.speak-btn {
+  background-color: #8e44ad;
+  color: #ffffff;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 10px;
+}
+
+.speak-btn:hover {
+  background-color: #9b59b6;
+}
+
+/* Expand Button */
+.expand-btn {
+  background-color: #8e44ad;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 15px;
+  transition: background-color 0.3s ease;
+  width: 100%;
+}
+
+.expand-btn:hover {
+  background-color: #9b59b6;
+}
+
+/* Expanded Kanji Info */
+.kanji-info.expanded {
+  max-height: 1000px;
+  opacity: 1;
+  transition: max-height 0.5s ease-in-out, opacity 0.4s ease-in-out;
+}
+
+.kanji-info:not(.expanded) {
+  max-height: 200px;
+  opacity: 0.9;
+  overflow: hidden;
+  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+  display: block;
+  margin: 20px auto;
+  border: 4px solid rgba(241, 196, 15, 0.3);
+  border-top: 4px solid #f1c40f;
+  border-left-color: transparent;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Word history */
+.word-history {
+  margin-top: 20px;
+}
+
+.word-history h4 {
+  font-size: 18px;
+  margin-bottom: 10px;
+  color: #f1c40f;
+}
+
+.word-history ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.word-history li {
+  cursor: pointer;
+  padding: 8px 12px;
+  background-color: rgba(142, 68, 173, 0.1);
+  border-radius: 5px;
+  color: #f1c40f;
+  transition: background-color 0.3s ease;
+}
+
+.word-history li:hover {
+  background-color: rgba(142, 68, 173, 0.3);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .word-of-the-day-widget {
+    padding: 20px;
+  }
+
+  .word-of-the-day-widget h3 {
+    font-size: 20px;
+  }
+
+  .kanji-info h4 {
+    font-size: 24px;
+  }
+
+  .kanji-info li {
+    padding: 10px;
+  }
+}
