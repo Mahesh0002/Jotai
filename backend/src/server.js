@@ -1,62 +1,54 @@
-// src/server.js
 const express = require('express');
 const mongoose = require('mongoose');
-const dotenv = require('dotenv');
 const cors = require('cors');
-
-// Load environment variables from .env file
-dotenv.config();
+const helmet = require('helmet');
+const config = require('./config');
+const errorHandler = require('./middlewares/errorHandler');
 
 // Create an instance of Express
 const app = express();
 
 // Middleware
+app.use(helmet());
 app.use(express.json());
 app.use(cors());
 
-// MongoDB connection URI from .env file
-const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/jotai-db';
-
 // Connect to MongoDB
-mongoose.connect(mongoURI)
+mongoose.connect(config.mongoUri)
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('Error connecting to MongoDB:', err));
 
-// Routes
+// Route Imports
 const goalRoutes = require('./routes/goalRoutes');
 const habitRoutes = require('./routes/habitRoutes');
 const noteRoutes = require('./routes/noteRoutes');
-const analyticsRoutes = require('./routes/analyticsRoutes');
-const preferenceRoutes = require('./routes/preferenceRoutes');
+const userRoutes = require('./routes/userRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const weatherRoutes = require('./routes/weatherRoutes');
 const stockRoutes = require('./routes/stockRoutes');
 const newsRoutes = require('./routes/newsRoutes');
 
-// Use the routes
-app.use('/api/goals', goalRoutes);
-app.use('/api/habits', habitRoutes);
-app.use('/api/notes', noteRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/preferences', preferenceRoutes);
-app.use('/api/ai', aiRoutes);
-app.use('/api/weather', weatherRoutes);
-app.use('/api/stocks', stockRoutes);
-app.use('/api/news', newsRoutes);
+// API Versioning - mount routes under /api/v1/
+const API_PREFIX = '/api/v1';
+
+app.use(`${API_PREFIX}/goals`, goalRoutes);
+app.use(`${API_PREFIX}/habits`, habitRoutes);
+app.use(`${API_PREFIX}/notes`, noteRoutes);
+app.use(`${API_PREFIX}/users`, userRoutes);
+app.use(`${API_PREFIX}/ai`, aiRoutes);
+app.use(`${API_PREFIX}/weather`, weatherRoutes);
+app.use(`${API_PREFIX}/stocks`, stockRoutes);
+app.use(`${API_PREFIX}/news`, newsRoutes);
 
 // Basic health check route
 app.get('/', (req, res) => {
-  res.send('Jōtai Backend is running!');
+  res.send('Jōtai Backend (v1) is running securely!');
 });
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!', error: err.message });
-});
+// Global Error Handler must be the last middleware
+app.use(errorHandler);
 
 // Start server
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(config.port, () => {
+  console.log(`Server running in ${config.env} mode on port ${config.port}`);
 });
