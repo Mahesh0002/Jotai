@@ -1,0 +1,470 @@
+/* PERFORMANCE OPTIMIZED VERSION */
+
+.daily-goals {
+  padding: 1rem;
+  /* OPTIMIZED: Remove expensive backdrop-filter */
+  background: rgba(0, 0, 0, 0.95);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  min-height: 350px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  /* Add hardware acceleration */
+  will-change: transform;
+  transform: translateZ(0);
+  contain: layout style;
+}
+
+/* DISABLED: Expensive shimmer animation that runs constantly */
+.daily-goals::before {
+  display: none;
+}
+
+.daily-goals h2 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #e74c3c;
+  margin-bottom: 2rem;
+  text-align: center;
+  /* OPTIMIZED: Reduced text-shadow blur */
+  text-shadow: 0 0 5px rgba(231, 76, 60, 0.5);
+  letter-spacing: 2px;
+}
+
+.quest-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.goals-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.goal-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  /* OPTIMIZED: Specific transitions instead of "all" */
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 45px;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* DISABLED: Expensive gradient overlay */
+.goal-item::before {
+  display: none;
+}
+
+.goal-item:hover {
+  background: #000;
+  border-color: rgba(255, 255, 255, 0.2);
+  /* OPTIMIZED: Use transform for smooth animation */
+  transform: translateY(-1px) translateZ(0);
+  /* OPTIMIZED: Simpler box-shadow */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.goal-content {
+  flex: 1;
+  margin-right: 0.75rem;
+}
+
+.goal-title {
+  font-size: 1.0rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 0.25rem;
+  line-height: 1.3;
+  /* OPTIMIZED: Reduced text-shadow */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.goal-description {
+  font-size: 0.75rem;
+  color: #b0b0b0;
+  line-height: 1.2;
+  opacity: 0.8;
+}
+
+.goal-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.goal-check-btn,
+.goal-edit-btn,
+.goal-delete-btn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  /* OPTIMIZED: Specific transitions */
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  will-change: transform;
+}
+
+/* DISABLED: Expensive ripple effects */
+.goal-check-btn::after,
+.goal-edit-btn::after,
+.goal-delete-btn::after {
+  display: none;
+}
+
+.goal-check-btn {
+  background: rgba(46, 204, 113, 0.2);
+  border: 1px solid rgba(46, 204, 113, 0.4);
+  color: #2ecc71;
+}
+
+.goal-check-btn:hover {
+  background: rgba(46, 204, 113, 0.3);
+  transform: scale(1.05) translateZ(0);
+  /* OPTIMIZED: Simpler box-shadow */
+  box-shadow: 0 0 8px rgba(46, 204, 113, 0.4);
+}
+
+.goal-check-btn.goal-completed {
+  background: rgba(46, 204, 113, 0.4);
+  color: #ffffff;
+}
+
+.goal-edit-btn {
+  background: rgba(52, 152, 219, 0.2);
+  border: 1px solid rgba(52, 152, 219, 0.4);
+  color: #3498db;
+}
+
+.goal-edit-btn:hover {
+  background: rgba(52, 152, 219, 0.3);
+  transform: scale(1.05) translateZ(0);
+  box-shadow: 0 0 8px rgba(52, 152, 219, 0.4);
+}
+
+.goal-delete-btn {
+  background: rgba(231, 76, 60, 0.2);
+  border: 1px solid rgba(231, 76, 60, 0.4);
+  color: #e74c3c;
+}
+
+.goal-delete-btn:hover {
+  background: rgba(231, 76, 60, 0.3);
+  transform: scale(1.05) translateZ(0);
+  box-shadow: 0 0 8px rgba(231, 76, 60, 0.4);
+}
+
+/* Completed task styling */
+.daily-goals .goal-item.completed-task {
+  background: rgba(38, 58, 46, 0.1);
+  border-color: rgba(46, 204, 113, 0.3);
+  /* OPTIMIZED: Faster transition */
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.daily-goals .goal-item.completed-task .goal-content .goal-title,
+.daily-goals .goal-item.completed-task .goal-content .goal-description {
+  text-decoration: line-through;
+  color: #888;
+  opacity: 0.7;
+}
+
+/* Add goal form */
+.add-goal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: rgba(114, 31, 177, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  /* REMOVED: Expensive backdrop-filter */
+}
+
+.add-goal-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.quest-input {
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 0.9rem;
+  /* OPTIMIZED: Specific transitions */
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.quest-input:focus {
+  outline: none;
+  border-color: rgba(142, 68, 173, 0.6);
+  /* OPTIMIZED: Reduced glow */
+  box-shadow: 0 0 5px rgba(142, 68, 173, 0.3);
+}
+
+.quest-input::placeholder {
+  color: #888;
+}
+
+/* Compact add goal button */
+.add-goal-btn {
+  padding: 0.75rem 1rem;
+  background: rgba(142, 68, 173, 0.8);
+  border: 1px solid rgba(142, 68, 173, 0.6);
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  /* OPTIMIZED: Specific transitions */
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  will-change: transform;
+}
+
+.add-goal-btn:hover {
+  background: rgba(142, 68, 173, 1);
+  transform: translateY(-1px) translateZ(0);
+  /* OPTIMIZED: Reduced shadow */
+  box-shadow: 0 4px 12px rgba(142, 68, 173, 0.4);
+}
+
+/* Simple add button when form is closed */
+.add-goal-btn:not(.add-quest-btn) {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  min-height: 36px;
+  background: rgba(142, 68, 173, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.add-goal-btn:not(.add-quest-btn):hover {
+  background: rgba(142, 68, 173, 0.8);
+  transform: translateY(-1px) translateZ(0);
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+}
+
+.cancel-btn {
+  background: rgba(231, 76, 60, 0.8) !important;
+  border-color: rgba(231, 76, 60, 0.6) !important;
+  padding: 0.75rem 1rem !important;
+  font-size: 0.9rem !important;
+  min-height: 40px !important;
+}
+
+.cancel-btn:hover {
+  background: rgba(231, 76, 60, 1) !important;
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4) !important;
+}
+
+/* Form button container */
+.add-goal-form>div[style*="display: flex"] {
+  gap: 0.75rem !important;
+  justify-content: flex-end !important;
+  margin-top: 0.5rem;
+}
+
+/* Add icon styling */
+.add-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Edit form */
+.edit-goal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.edit-input {
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 1rem;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.edit-input:focus {
+  outline: none;
+  border-color: rgba(52, 152, 219, 0.6);
+  box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+}
+
+.edit-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.save-btn,
+.cancel-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.save-btn {
+  background: rgba(46, 204, 113, 0.8);
+  color: #ffffff;
+}
+
+.save-btn:hover {
+  background: rgba(46, 204, 113, 1);
+  transform: translateY(-1px) translateZ(0);
+}
+
+/* Level up animation */
+.level-up-animation {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  text-align: center;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.level-up-text {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #f1c40f;
+  /* OPTIMIZED: Reduced text-shadow */
+  text-shadow: 0 0 10px rgba(241, 196, 15, 0.8);
+  /* OPTIMIZED: Faster animation */
+  animation: levelUpPulse 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.level-up-subtext {
+  display: block;
+  font-size: 1.2rem;
+  color: #ffffff;
+  margin-top: 0.5rem;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+@keyframes levelUpPulse {
+
+  0%,
+  100% {
+    transform: scale(1) translateZ(0);
+  }
+
+  50% {
+    transform: scale(1.1) translateZ(0);
+  }
+}
+
+/* Animations */
+.task-complete-animation {
+  animation: completeTask 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.task-delete-animation {
+  animation: deleteTask 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes completeTask {
+  0% {
+    transform: scale(1) translateZ(0);
+  }
+
+  50% {
+    transform: scale(1.02) translateZ(0);
+    background: rgba(46, 204, 113, 0.2);
+  }
+
+  100% {
+    transform: scale(1) translateZ(0);
+  }
+}
+
+@keyframes deleteTask {
+  0% {
+    transform: scale(1) translateZ(0);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(0.98) translateZ(0);
+  }
+
+  100% {
+    transform: scale(0.9) translateZ(0);
+    opacity: 0;
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .daily-goals {
+    padding: 1.5rem;
+  }
+
+  .goal-item {
+    padding: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .goal-actions {
+    align-self: flex-end;
+  }
+
+  .goal-title {
+    font-size: 1.1rem;
+  }
+}
+
+/* PERFORMANCE: Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

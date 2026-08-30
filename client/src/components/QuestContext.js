@@ -148,11 +148,11 @@ export function QuestProvider({ children }) {
       prev.map((g) =>
         g.id === goalId
           ? {
-              ...g,
-              progress: g.completed ? 0 : 100,
-              completed: !g.completed,
-              updatedAt: new Date().toISOString(),
-            }
+            ...g,
+            progress: g.completed ? 0 : 100,
+            completed: !g.completed,
+            updatedAt: new Date().toISOString(),
+          }
           : g,
       ),
     )
@@ -166,11 +166,11 @@ export function QuestProvider({ children }) {
       prev.map((g) =>
         g.id === goalId
           ? {
-              ...g,
-              title: newTitle.trim(),
-              description: newDescription?.trim() || g.description,
-              updatedAt: new Date().toISOString(),
-            }
+            ...g,
+            title: newTitle.trim(),
+            description: newDescription?.trim() || g.description,
+            updatedAt: new Date().toISOString(),
+          }
           : g,
       ),
     )

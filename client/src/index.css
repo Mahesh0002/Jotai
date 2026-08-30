@@ -1,7 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Main Background */
 body {
-  background: #000; /* Pure black background */
-  color: #8e44ad; /* Neon yellow text */
+  background: #000;
+  /* Pure black background */
+  color: #8e44ad;
+  /* Neon yellow text */
   font-family: 'Orbitron', sans-serif;
   margin: 0;
   display: flex;
@@ -14,12 +20,15 @@ body {
 .status-panel {
   width: 400px;
   padding: 20px;
-  background: #111; /* Deep black for contrast inside the box */
+  background: #111;
+  /* Deep black for contrast inside the box */
   border: 2px solid transparent;
-  border-image: linear-gradient(90deg, #FFC107, #FFD700, #FFB300); /* Golden gradient border */
+  border-image: linear-gradient(90deg, #FFC107, #FFD700, #FFB300);
+  /* Golden gradient border */
   border-image-slice: 1;
   border-radius: 10px;
-  box-shadow: 0 0 20px rgba(255, 215, 0, 0.7); /* Glowing gold effect */
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.7);
+  /* Glowing gold effect */
   position: relative;
   display: flex;
   flex-direction: column;
@@ -32,7 +41,8 @@ body {
   position: absolute;
   inset: 0;
   background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 25%, transparent 25%, transparent 50%, rgba(255, 215, 0, 0.1) 50%, rgba(255, 215, 0, 0.1) 75%, transparent 75%);
-  background-size: 40px 40px; /* Spacing for diagonal accents */
+  background-size: 40px 40px;
+  /* Spacing for diagonal accents */
   z-index: 0;
   opacity: 0.7;
   border-radius: 10px;
@@ -43,12 +53,16 @@ body {
   font-size: 22px;
   font-weight: 700;
   text-align: center;
-  color: #8e44ad; /* Golden yellow */
-  letter-spacing: 1.5px; /* Wider spacing for futuristic effect */
-  text-shadow: 0 0 8px rgba(255, 215, 0, 0.8); /* Glow effect for header */
+  color: #8e44ad;
+  /* Golden yellow */
+  letter-spacing: 1.5px;
+  /* Wider spacing for futuristic effect */
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.8);
+  /* Glow effect for header */
   margin-bottom: 10px;
   position: relative;
-  z-index: 1; /* Ensure it is above the background accents */
+  z-index: 1;
+  /* Ensure it is above the background accents */
 }
 
 /* Grid Layout for Attributes */
@@ -65,7 +79,8 @@ body {
   font-weight: 500;
   display: flex;
   justify-content: space-between;
-  color: #8e44ad; /* Slightly lighter gold */
+  color: #8e44ad;
+  /* Slightly lighter gold */
   text-shadow: 0 0 4px rgba(255, 215, 0, 0.6);
 }
 

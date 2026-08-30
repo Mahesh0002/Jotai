@@ -15,7 +15,7 @@ app.use(express.json());
 app.use(cors());
 
 // MongoDB connection URI from .env file
-const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/your-database-name';
+const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/jotai-db';
 
 // Connect to MongoDB
 mongoose.connect(mongoURI)
@@ -23,19 +23,30 @@ mongoose.connect(mongoURI)
   .catch((err) => console.error('Error connecting to MongoDB:', err));
 
 // Routes
+const goalRoutes = require('./routes/goalRoutes');
+const habitRoutes = require('./routes/habitRoutes');
+const noteRoutes = require('./routes/noteRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
+const preferenceRoutes = require('./routes/preferenceRoutes');
+const aiRoutes = require('./routes/aiRoutes');
+const weatherRoutes = require('./routes/weatherRoutes');
+const stockRoutes = require('./routes/stockRoutes');
 const newsRoutes = require('./routes/newsRoutes');
-const testRoutes = require('./routes/testRoutes');
-const userRoutes = require('./routes/userRoutes');  // Ensure this is correct path
 
-// Use the user routes
-app.use('/api/users', userRoutes);
-
+// Use the routes
+app.use('/api/goals', goalRoutes);
+app.use('/api/habits', habitRoutes);
+app.use('/api/notes', noteRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/preferences', preferenceRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/weather', weatherRoutes);
+app.use('/api/stocks', stockRoutes);
 app.use('/api/news', newsRoutes);
-app.use('/api/test', testRoutes);
 
-// Example route to test the server
+// Basic health check route
 app.get('/', (req, res) => {
-  res.send('Hello from the backend!');
+  res.send('Jōtai Backend is running!');
 });
 
 // Global error handler

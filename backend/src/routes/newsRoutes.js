@@ -1,31 +1,24 @@
-// src/routes/newsRoutes.js
 const express = require('express');
 const router = express.Router();
+const axios = require('axios');
 
-// Import the News model
-const News = require('../models/News');
-
-// Route to get all news
 router.get('/', async (req, res) => {
   try {
-    const news = await News.find();
-    res.json(news);
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to get news', error: error.message });
-  }
-});
+    const apiKey = process.env.NEWS_API_KEY;
 
-// Route to insert a sample news item (for testing purposes)
-router.post('/insert', async (req, res) => {
-  try {
-    const newNews = new News({
-      title: "Sample News Title",
-      content: "This is the content for the sample news article."
-    });
-    await newNews.save();
-    res.json({ message: 'News item inserted' });
+    if (!apiKey) {
+      return res.status(500).json({ message: 'News API key not configured' });
+    }
+
+    // Default params similar to frontend
+    const response = await axios.get(
+      `https://newsapi.org/v2/everything?q=technology&domains=cnn.com,bbc.com,techcrunch.com&sortBy=publishedAt&pageSize=5&apiKey=${apiKey}`
+    );
+
+    res.json(response.data);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to insert news', error: error.message });
+    console.error('News API Error:', error.response?.data || error.message);
+    res.status(error.response?.status || 500).json(error.response?.data || { message: 'Error fetching news' });
   }
 });
 

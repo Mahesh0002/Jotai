@@ -12,27 +12,6 @@ const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`
 const DEEPGRAM_API_KEY = process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY
 
-// Define keywords for different actions
-const actionKeywords = {
-  add: ["add goal", "create goal", "new goal", "add task", "create task", "new task"],
-  delete: ["delete goal", "remove goal", "delete task", "remove task"],
-  edit: ["edit goal", "update goal", "change goal", "edit task", "update task", "change task"],
-  complete: [
-    "complete goal",
-    "finish goal",
-    "mark goal as done",
-    "goal completed",
-    "complete task",
-    "finish task",
-    "mark task as done",
-    "task completed",
-  ],
-  habit: ["add habit", "create habit", "new habit", "track habit"],
-  pomodoro: ["start timer", "set timer", "pomodoro timer", "focus timer", "start pomodoro"],
-}
-
-const aiAddedKeywords = ["i've added the goal", "i've added a goal", "i'm adding", "created a new"]
-
 function useChat() {
   const [messages, setMessages] = useState(() => {
     try {
@@ -228,177 +207,10 @@ const DeepgramSTT_TTS = () => {
   }
 }
 
-// Improved goal finding function
-const findGoalByText = (goals, searchText) => {
-  if (!goals || !searchText) return null
 
-  const lowerSearchText = searchText.toLowerCase().trim()
 
-  // First try exact match
-  let foundGoal = goals.find((g) => g.title.toLowerCase() === lowerSearchText)
-  if (foundGoal) return foundGoal
-
-  // Then try partial match
-  foundGoal = goals.find((g) => g.title.toLowerCase().includes(lowerSearchText))
-  if (foundGoal) return foundGoal
-
-  // Try matching with description
-  foundGoal = goals.find((g) => g.description && g.description.toLowerCase().includes(lowerSearchText))
-  if (foundGoal) return foundGoal
-
-  // Try matching individual words
-  const searchWords = lowerSearchText.split(" ")
-  foundGoal = goals.find((g) => searchWords.some((word) => g.title.toLowerCase().includes(word)))
-
-  return foundGoal
-}
-
-// Enhanced to handle different types of goals and actions
-const extractAction = (text, goals, habits) => {
-  const lowerText = text.toLowerCase()
-  console.log("Extracting action from:", text)
-  console.log(
-    "Available goals:",
-    goals?.map((g) => g.title),
-  )
-
-  // Check for habit-related commands
-  for (const keyword of actionKeywords.habit) {
-    if (lowerText.includes(keyword)) {
-      const habitText = text
-        .substring(lowerText.indexOf(keyword) + keyword.length)
-        .trim()
-        .replace(/["']/g, "")
-      return { action: "add_habit", data: habitText }
-    }
-  }
-
-  // Check for pomodoro-related commands
-  for (const keyword of actionKeywords.pomodoro) {
-    if (lowerText.includes(keyword)) {
-      const durationMatch = lowerText.match(/(\d+)\s*minutes?/i)
-      const duration = durationMatch ? Number.parseInt(durationMatch[1]) : 25
-      return { action: "start_pomodoro", data: duration }
-    }
-  }
-
-  // Check for goal completion
-  for (const keyword of actionKeywords.complete) {
-    if (lowerText.includes(keyword)) {
-      const goalText = text
-        .substring(lowerText.indexOf(keyword) + keyword.length)
-        .trim()
-        .replace(/["']/g, "")
-
-      console.log("Looking for goal to complete:", goalText)
-      const goalToComplete = findGoalByText(goals, goalText)
-      console.log("Found goal to complete:", goalToComplete)
-
-      return { action: "complete", data: goalToComplete?.id }
-    }
-  }
-
-  // Check for goal deletion
-  for (const keyword of actionKeywords.delete) {
-    if (lowerText.includes(keyword)) {
-      const goalText = text
-        .substring(lowerText.indexOf(keyword) + keyword.length)
-        .trim()
-        .replace(/["']/g, "")
-
-      console.log("Looking for goal to delete:", goalText)
-      const goalToDelete = findGoalByText(goals, goalText)
-      console.log("Found goal to delete:", goalToDelete)
-
-      return { action: "delete", data: goalToDelete?.id }
-    }
-  }
-
-  // Check for goal editing
-  for (const keyword of actionKeywords.edit) {
-    if (lowerText.includes(keyword)) {
-      // Try to find quoted old text and new text
-      const quotedMatch = text.match(/'([^']+)' to '([^']+)'/i) || text.match(/"([^"]+)" to "([^"]+)"/i)
-      if (quotedMatch) {
-        const oldText = quotedMatch[1]
-        const newText = quotedMatch[2]
-        const goalToEdit = findGoalByText(goals, oldText)
-        if (goalToEdit) {
-          return { action: "edit", data: { id: goalToEdit.id, newText } }
-        }
-      }
-
-      // Fallback to less strict parsing
-      const simpleMatch = text.match(/(.+) to (.+)/i)
-      if (simpleMatch) {
-        const oldTextCandidate = simpleMatch[1].substring(lowerText.indexOf(keyword) + keyword.length).trim()
-        const newText = simpleMatch[2].trim()
-        const goalToEdit = findGoalByText(goals, oldTextCandidate)
-        if (goalToEdit) {
-          return { action: "edit", data: { id: goalToEdit.id, newText } }
-        }
-      }
-    }
-  }
-
-  // Check for goal addition
-  for (const keyword of actionKeywords.add) {
-    if (lowerText.includes(keyword)) {
-      const goalText = text
-        .substring(lowerText.indexOf(keyword) + keyword.length)
-        .trim()
-        .replace(/["']/g, "")
-      return { action: "add", data: goalText }
-    }
-  }
-
-  return { action: null, data: null }
-}
-
-const extractGoalFromText = (text) => {
-  console.log("Checking text for keywords:", text)
-  const lowerText = text.toLowerCase()
-
-  // Check if this is a user request to add a goal
-  for (const keyword of actionKeywords.add) {
-    if (lowerText.includes(keyword)) {
-      const trimmedText = text.substring(lowerText.indexOf(keyword) + keyword.length).trim()
-      return trimmedText.replace(/^["'](.+(?=["']$))["']$/, "$1")
-    }
-  }
-
-  // Check if the AI is confirming it added a goal
-  for (const keyword of aiAddedKeywords) {
-    if (lowerText.includes(keyword)) {
-      console.log("AI added keyword found:", keyword)
-
-      const colonIndex = lowerText.indexOf(":")
-      if (colonIndex !== -1) {
-        const goalText = text.substring(colonIndex + 1).trim()
-        return goalText.replace(/\*\*/g, "").trim()
-      }
-
-      const quoteMatch = text.match(/["']([^"']+)["']/)
-      if (quoteMatch) {
-        return quoteMatch[1]
-      }
-
-      const keywordIndex = lowerText.indexOf(keyword) + keyword.length
-      const goalText = text.substring(keywordIndex).trim()
-      return goalText.replace(/\*\*/g, "").trim()
-    }
-  }
-
-  if (lowerText.includes("create a goal") || lowerText.includes("set a goal")) {
-    return "Set up a goal"
-  }
-
-  console.log("No keywords detected in text.")
-  return null
-}
-
-function Assistant({ onClose, onAddHabit, onAddNote, onStartPomodoro, goals = [], habits = [], notes = [] }) {
-  const [open, setOpen] = useState(true)
+function Assistant({ onClose, onAddHabit, onAddNote, onRemoveNote, onStartPomodoro, goals = [], habits = [], notes = [] }) {
+  const [open, setOpen] = useState(false)
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const { messages, displayTypingEffect, addUserMessage, userInfo, updateUserInfo, clearMessages } = useChat()
@@ -474,144 +286,213 @@ function Assistant({ onClose, onAddHabit, onAddNote, onStartPomodoro, goals = []
     }
   }, [])
 
-  const sendMessage = useCallback(async () => {
-    console.log("User input:", input)
-    if (!input.trim()) return
+  // Function to call Gemini with tools
+  const callGeminiFunction = useCallback(async (userText) => {
+    if (!GEMINI_API_KEY) {
+      await displayTypingEffect("⚠️ API key is missing. I can't perform smart actions.")
+      return
+    }
 
-    const userMessageId = `user-${Date.now()}`
-    addUserMessage({ role: "user", text: input, id: userMessageId })
-    setInput("")
-    setLoading(true)
+    const tools = [
+      {
+        name: "add_goal",
+        description: "Add a new goal to the user's list.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            title: { type: "STRING", description: "The title of the goal." },
+          },
+          required: ["title"],
+        },
+      },
+      {
+        name: "delete_goal",
+        description: "Delete a goal by its ID. Use the provided list of goals to find the correct ID.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            goal_id: { type: "NUMBER", description: "The ID of the goal to delete." },
+          },
+          required: ["goal_id"],
+        },
+      },
+      {
+        name: "edit_goal",
+        description: "Edit an existing goal's title.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            goal_id: { type: "NUMBER", description: "The ID of the goal to edit." },
+            new_title: { type: "STRING", description: "The new title for the goal." },
+          },
+          required: ["goal_id", "new_title"],
+        },
+      },
+      {
+        name: "complete_goal",
+        description: "Mark a goal as completed.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            goal_id: { type: "NUMBER", description: "The ID of the goal to complete." },
+          },
+          required: ["goal_id"],
+        },
+      },
+      {
+        name: "add_habit",
+        description: "Add a new habit to track.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            title: { type: "STRING", description: "The title of the habit." },
+            frequency: { type: "STRING", description: "Frequency (daily, weekly, monthly). Default to daily." },
+          },
+          required: ["title"],
+        },
+      },
+      {
+        name: "add_note",
+        description: "Add a quick note or reminder.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            content: { type: "STRING", description: "The content of the note." },
+          },
+          required: ["content"],
+        },
+      },
+      {
+        name: "delete_note",
+        description: "Delete a note by its ID. Use the provided list of notes to find the correct ID.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            note_id: { type: "NUMBER", description: "The ID of the note to delete." },
+          },
+          required: ["note_id"],
+        },
+      },
+      {
+        name: "start_pomodoro",
+        description: "Start a Pomodoro timer.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            duration: { type: "NUMBER", description: "Duration in minutes. Default to 25." },
+          },
+          required: ["duration"],
+        },
+      },
+    ]
+
+    const systemPrompt = `
+      You are Jōtai's Smart Assistant. Your job is to help the user manage their productivity.
+      
+      Current Context:
+      - User Name: ${userInfo.name || "User"}
+      - Current Goals: ${JSON.stringify(goals.map(g => ({ id: g.id, title: g.title, completed: g.completed })))}
+      - Current Habits: ${JSON.stringify(habits.map(h => ({ id: h.id, text: h.text })))}
+      - Current Notes: ${JSON.stringify(notes.map(n => ({ id: n.id, content: n.text })))}
+      
+      Instructions:
+      1. Analyze the user's request.
+      2. If the user wants to perform an action (add/delete/edit/complete goals, habits, notes, timer), CALL THE APPROPRIATE TOOL.
+      3. If the user refers to a goal or note by name (e.g., "delete the milk goal"), find the matching ID from the lists. Be smart about fuzzy matching.
+      4. If the user just wants to chat, reply normally without calling a tool.
+      5. BE CONCISE.
+    `
 
     try {
-      // First check for direct commands
-      const userAction = extractAction(input, goals, habits)
-      if (userAction.action) {
-        handleAction(userAction)
-        setLoading(false)
-        return
-      }
-
-      if (!GEMINI_API_KEY) {
-        await displayTypingEffect("⚠️ API key is missing. I'll try to help with basic functionality.")
-        setLoading(false)
-        return
-      }
-
       const response = await fetch(GEMINI_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `${userInfo.name ? `[User: ${userInfo.name}]` : ""} ${input}`,
-                },
-              ],
-            },
-          ],
+          contents: [{ parts: [{ text: systemPrompt }, { text: userText }] }],
+          tools: [{ function_declarations: tools }],
         }),
       })
 
       const data = await response.json()
-      const aiText =
-        data?.candidates?.[0]?.content?.parts?.map((part) => part.text).join(" ") || "I couldn't process that request."
+      const candidate = data.candidates?.[0]
+      const content = candidate?.content
+      const parts = content?.parts || []
 
-      await displayTypingEffect(aiText)
-      playAudio(aiText)
+      // Check for function calls
+      const functionCall = parts.find(part => part.functionCall)
 
-      const aiAction = extractAction(aiText, goals, habits)
-      if (aiAction.action) {
-        handleAction(aiAction)
+      if (functionCall) {
+        const { name, args } = functionCall.functionCall
+        console.log("🤖 AI Function Call:", name, args)
+
+        let responseText = ""
+
+        switch (name) {
+          case "add_goal":
+            addGoal(args.title)
+            responseText = `I've added "${args.title}" to your goals.`
+            break
+          case "delete_goal":
+            deleteGoal(args.goal_id)
+            responseText = "Goal deleted."
+            break
+          case "edit_goal":
+            editGoal(args.goal_id, args.new_title)
+            responseText = `Goal updated to "${args.new_title}".`
+            break
+          case "complete_goal":
+            toggleComplete(args.goal_id)
+            triggerConfetti()
+            responseText = "Goal completed! Great job! 🎉"
+            break
+          case "add_habit":
+            onAddHabit(args.title, args.frequency || "daily")
+            responseText = `Added habit: ${args.title}`
+            break
+          case "add_note":
+            onAddNote(args.content)
+            responseText = "Note saved."
+            break
+          case "delete_note":
+            onRemoveNote(args.note_id)
+            responseText = "Note deleted."
+            break
+          case "start_pomodoro":
+            onStartPomodoro(args.duration || 25)
+            responseText = `Starting a ${args.duration || 25}-minute timer.`
+            break
+          default:
+            responseText = "I'm not sure how to do that yet."
+        }
+
+        await displayTypingEffect(responseText)
+        playAudio(responseText)
       } else {
-        const extractedGoal = extractGoalFromText(aiText)
-        if (extractedGoal) {
-          addGoal(extractedGoal)
-          displayTypingEffect(`I've added "${extractedGoal}" to your goals.`)
-        }
+        // Normal chat response
+        const textResponse = parts.map(p => p.text).join(" ") || "I didn't understand that."
+        await displayTypingEffect(textResponse)
+        playAudio(textResponse)
       }
+
     } catch (error) {
-      console.error("Error fetching AI response:", error)
-      await displayTypingEffect("⚠️ Error fetching response. Please try again later.")
-    } finally {
-      setLoading(false)
+      console.error("Error calling Gemini:", error)
+      await displayTypingEffect("⚠️ My brain is fuzzy right now. Please try again.")
     }
-  }, [
-    input,
-    goals,
-    habits,
-    addUserMessage,
-    displayTypingEffect,
-    addGoal,
-    toggleComplete,
-    deleteGoal,
-    editGoal,
-    onAddHabit,
-    onAddNote,
-    onStartPomodoro,
-    userInfo.name,
-    playAudio,
-  ])
+  }, [userInfo.name, goals, habits, notes, addGoal, deleteGoal, editGoal, toggleComplete, triggerConfetti, onAddHabit, onAddNote, onRemoveNote, onStartPomodoro, displayTypingEffect, playAudio])
 
-  const handleAction = (action) => {
-    console.log("Handling action:", action)
+  const sendMessage = useCallback(async () => {
+    if (!input.trim()) return
 
-    switch (action.action) {
-      case "add":
-        if (action.data) {
-          addGoal(action.data)
-          displayTypingEffect(`I've added "${action.data}" to your goals.`)
-        } else {
-          displayTypingEffect("Couldn't understand the goal to add")
-        }
-        break
-      case "delete":
-        if (action.data) {
-          deleteGoal(action.data)
-          displayTypingEffect(`Goal deleted successfully`)
-        } else {
-          displayTypingEffect("Couldn't find that goal to delete. Try being more specific with the goal title.")
-        }
-        break
-      case "edit":
-        if (action.data?.id && action.data.newText) {
-          editGoal(action.data.id, action.data.newText)
-          displayTypingEffect(`Goal updated to: "${action.data.newText}"`)
-        } else {
-          displayTypingEffect("Couldn't find that goal to edit or new text is missing")
-        }
-        break
-      case "complete":
-        if (action.data) {
-          toggleComplete(action.data)
-          displayTypingEffect(`🎉 Congratulations! Goal completed successfully!`)
-          triggerConfetti()
-        } else {
-          displayTypingEffect("Couldn't find that goal to complete. Try being more specific with the goal title.")
-        }
-        break
-      case "add_habit":
-        if (action.data) {
-          onAddHabit(action.data)
-          displayTypingEffect(`I've added "${action.data}" to your habits.`)
-        } else {
-          displayTypingEffect("Couldn't understand the habit to add")
-        }
-        break
-      case "start_pomodoro":
-        if (action.data) {
-          onStartPomodoro(action.data)
-          displayTypingEffect(`Starting a ${action.data}-minute Pomodoro timer.`)
-        } else {
-          onStartPomodoro(25)
-          displayTypingEffect(`Starting a 25-minute Pomodoro timer.`)
-        }
-        break
-      default:
-        break
-    }
-  }
+    const userMessageId = `user-${Date.now()}`
+    addUserMessage({ role: "user", text: input, id: userMessageId })
+    const currentInput = input
+    setInput("")
+    setLoading(true)
+
+    await callGeminiFunction(currentInput)
+
+    setLoading(false)
+  }, [input, goals, habits, addUserMessage, displayTypingEffect, addGoal, toggleComplete, deleteGoal, editGoal, onAddHabit, onAddNote, onStartPomodoro, userInfo.name, playAudio])
 
   const handleInputChange = useCallback((e) => {
     setInput(e.target.value)
@@ -754,17 +635,17 @@ function Assistant({ onClose, onAddHabit, onAddNote, onStartPomodoro, goals = []
               animate={
                 isListening
                   ? {
-                      boxShadow: ["0 0 0 0 rgba(255, 0, 0, 0.7)", "0 0 0 10px rgba(255, 0, 0, 0)"],
-                    }
+                    boxShadow: ["0 0 0 0 rgba(255, 0, 0, 0.7)", "0 0 0 10px rgba(255, 0, 0, 0)"],
+                  }
                   : {}
               }
               transition={
                 isListening
                   ? {
-                      duration: 1.5,
-                      repeat: Number.POSITIVE_INFINITY,
-                      repeatType: "loop",
-                    }
+                    duration: 1.5,
+                    repeat: Number.POSITIVE_INFINITY,
+                    repeatType: "loop",
+                  }
                   : {}
               }
             >
