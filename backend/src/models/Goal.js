@@ -10,6 +10,13 @@ const goalSchema = new mongoose.Schema({
         type: String,
         trim: true
     },
+    // Canonical status field — used by analytics, assistant, and all future code
+    status: {
+        type: String,
+        enum: ['active', 'completed', 'archived'],
+        default: 'active'
+    },
+    // Legacy boolean field — kept in sync by pre-save hook for backward compat
     completed: {
         type: Boolean,
         default: false
@@ -20,10 +27,17 @@ const goalSchema = new mongoose.Schema({
         min: 0,
         max: 100
     },
-    createdAt: {
-        type: Date,
-        default: Date.now
+    dueDate: {
+        type: Date
     }
+}, {
+    timestamps: true
+});
+
+// Keep completed boolean in sync with status
+goalSchema.pre('save', function (next) {
+    this.completed = this.status === 'completed';
+    next();
 });
 
 module.exports = mongoose.model('Goal', goalSchema);

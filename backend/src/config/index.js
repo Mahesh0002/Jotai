@@ -8,5 +8,11 @@ module.exports = {
   geminiApiKey: process.env.GEMINI_API_KEY || '',
   weatherApiKey: process.env.WEATHER_API_KEY || '',
   newsApiKey: process.env.NEWS_API_KEY || '',
-  twelveDataApiKey: process.env.TWELVE_DATA_API_KEY || ''
+  twelveDataApiKey: process.env.TWELVE_DATA_API_KEY || '',
+  // Spotify (client_id only; no secret needed for PKCE flow)
+  spotifyClientId: process.env.SPOTIFY_CLIENT_ID || '',
+  // GitHub OAuth (only needed for OAuth flow; PAT flow needs no server config)
+  githubClientId: process.env.GITHUB_CLIENT_ID || '',
+  githubClientSecret: process.env.GITHUB_CLIENT_SECRET || '',
+  runnerServiceToken: process.env.RUNNER_SERVICE_TOKEN || '',
 };

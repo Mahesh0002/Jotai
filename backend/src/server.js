@@ -27,6 +27,14 @@ const aiRoutes = require('./routes/aiRoutes');
 const weatherRoutes = require('./routes/weatherRoutes');
 const stockRoutes = require('./routes/stockRoutes');
 const newsRoutes = require('./routes/newsRoutes');
+const taskRoutes = require('./routes/taskRoutes');
+const projectRoutes = require('./routes/projectRoutes');
+const focusRoutes = require('./routes/focusRoutes');
+const todayRoutes = require('./routes/todayRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
+const integrationRoutes = require('./routes/integrationRoutes');
+const proposalRoutes = require('./routes/proposalRoutes');
+const assistantRoutes = require('./routes/assistantRoutes');
 
 // API Versioning - mount routes under /api/v1/
 const API_PREFIX = '/api/v1';
@@ -39,6 +47,14 @@ app.use(`${API_PREFIX}/ai`, aiRoutes);
 app.use(`${API_PREFIX}/weather`, weatherRoutes);
 app.use(`${API_PREFIX}/stocks`, stockRoutes);
 app.use(`${API_PREFIX}/news`, newsRoutes);
+app.use(`${API_PREFIX}/tasks`, taskRoutes);
+app.use(`${API_PREFIX}/projects`, projectRoutes);
+app.use(`${API_PREFIX}/focus`, focusRoutes);
+app.use(`${API_PREFIX}/today`, todayRoutes);
+app.use(`${API_PREFIX}/analytics`, analyticsRoutes);
+app.use(`${API_PREFIX}/integrations`, integrationRoutes);
+app.use(`${API_PREFIX}/proposals`, proposalRoutes);
+app.use(`${API_PREFIX}/assistant`, assistantRoutes);
 
 // Basic health check route
 app.get('/', (req, res) => {

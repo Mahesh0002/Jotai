@@ -1,9 +1,16 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageSquare, X, Mic, MicOff, Send, Bot } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { X, Mic, MicOff, Send, Bot, Check, XCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 
-type Message = { id: string; role: "user" | "assistant"; text: string };
+type ProposedAction = { type: string; payload: any };
+type Message = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  proposedActions?: ProposedAction[];
+  actionStatus?: "pending" | "accepted" | "declined";
+};
 
 export function SmartAssistant() {
   const [open, setOpen] = useState(false);
@@ -25,8 +32,56 @@ export function SmartAssistant() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    const handleOpen = () => setOpen(true);
+    window.addEventListener("open-ai-assistant", handleOpen);
+    return () => window.removeEventListener("open-ai-assistant", handleOpen);
+  }, []);
+
   const toggleChat = () => setOpen((prev) => !prev);
   const clearChat = () => setMessages([]);
+
+  const handleAction = async (msgId: string, action: ProposedAction, accepted: boolean) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === msgId ? { ...m, actionStatus: accepted ? "accepted" : "declined" } : m,
+      ),
+    );
+    if (accepted) {
+      setLoading(true);
+      try {
+        const response = await fetch("http://localhost:8000/api/runner/execute", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            actionName: action.type,
+            params: action.payload
+          }),
+        });
+
+        const data = await response.json();
+        if (data.data?.actionResult?.ui?.invalidate) {
+          window.dispatchEvent(
+            new CustomEvent("jotai-invalidate", { detail: data.data.actionResult.ui.invalidate })
+          );
+          // UI updates via TanStack Query invalidation — no page reload needed
+        }
+        
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            role: "assistant",
+            text: data.data?.reply || data.message || "Action executed.",
+          },
+        ]);
+      } catch (e) {
+        console.error("Action execution failed:", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
@@ -38,25 +93,73 @@ export function SmartAssistant() {
     setMessages((prev) => [...prev, { id: Date.now().toString(), role: "user", text: userMsg }]);
 
     try {
-      const response = await fetch("http://localhost:5000/api/v1/ai/chat", {
+      const response = await fetch("http://localhost:8000/api/runner/trigger", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Backend expects 'prompt', not 'message'
-        body: JSON.stringify({ prompt: userMsg, context: "Be a helpful focus and productivity assistant." }),
+        body: JSON.stringify({
+          intent: userMsg
+        }),
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success || data.data) {
-        // Handle both standard ApiResponse { success: true, data: { reply } } and raw data
-        const replyText = data.data?.reply || data.data?.text || data.reply || (typeof data.data === 'string' ? data.data : "I processed your request but received an empty response.");
-        setMessages((prev) => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", text: replyText }]);
+        const replyText =
+          data.data?.reply ||
+          data.data?.text ||
+          data.reply ||
+          (typeof data.data === "string"
+            ? data.data
+            : "I processed your request but received an empty response.");
+            
+        // Check for UI invalidations from standard ActionResult
+        if (data.data?.actionResult?.ui?.invalidate) {
+          window.dispatchEvent(
+            new CustomEvent("jotai-invalidate", { detail: data.data.actionResult.ui.invalidate })
+          );
+          // UI updates via TanStack Query invalidation — no page reload needed
+        }
+
+        let proposedActions = data.data?.proposedActions || [];
+        
+        if (data.data?.actionResult?.confirmationRequired) {
+          proposedActions = [{
+             type: data.data.actionResult.actionName,
+             payload: data.data.actionResult.params,
+             actionId: data.data.actionResult.actionId
+          }];
+        }
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: "assistant",
+            text: replyText,
+            proposedActions,
+            actionStatus: proposedActions.length > 0 ? "pending" : undefined,
+          },
+        ]);
       } else {
-        setMessages((prev) => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", text: data.message || "I encountered an error connecting to my core." }]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: "assistant",
+            text: data.message || "I encountered an error connecting to my core.",
+          },
+        ]);
       }
     } catch (error) {
       console.error("Chat API Error:", error);
-      setMessages((prev) => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", text: "System offline. Please check your backend connection on port 5000." }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          text: "System offline. Please check your backend connection on port 5000.",
+        },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -64,15 +167,6 @@ export function SmartAssistant() {
 
   return (
     <>
-      <motion.button
-        onClick={toggleChat}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-purple-500 text-primary-foreground shadow-glow hover:bg-purple-400"
-      >
-        <Bot className="size-6" />
-      </motion.button>
-
       <AnimatePresence>
         {open && (
           <motion.div
@@ -85,15 +179,33 @@ export function SmartAssistant() {
             {/* Header */}
             <div className="flex items-center justify-between border-b border-border/70 px-4 py-3 bg-surface">
               <div className="flex items-center gap-3">
-                <span className="icon-badge icon-badge-purple"><Bot className="size-4" /></span>
+                <span className="icon-badge icon-badge-purple">
+                  <Bot className="size-4" />
+                </span>
                 <div>
                   <p className="section-eyebrow text-purple-300">JŌTAI AI</p>
-                  <h2 className="text-sm font-semibold tracking-tight text-foreground">Smart Assistant</h2>
+                  <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                    Smart Assistant
+                  </h2>
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" onClick={clearChat} className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground">Clear</Button>
-                <Button variant="ghost" size="icon" onClick={toggleChat} className="h-7 w-7 text-muted-foreground"><X className="size-4" /></Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearChat}
+                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Clear
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleChat}
+                  className="h-7 w-7 text-muted-foreground"
+                >
+                  <X className="size-4" />
+                </Button>
               </div>
             </div>
 
@@ -102,7 +214,9 @@ export function SmartAssistant() {
               {messages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center text-center">
                   <Bot className="size-8 text-muted-foreground/30 mb-3" />
-                  <p className="text-sm text-muted-foreground">How can I assist your focus today?</p>
+                  <p className="text-sm text-muted-foreground">
+                    How can I assist your focus today?
+                  </p>
                 </div>
               ) : (
                 messages.map((msg) => (
@@ -110,24 +224,95 @@ export function SmartAssistant() {
                     key={msg.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                    className={`flex flex-col gap-2 ${msg.role === "user" ? "items-end" : "items-start"}`}
                   >
-                    <div className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm leading-relaxed ${
-                      msg.role === "user" 
-                        ? "bg-purple-500/20 text-purple-100 rounded-br-sm" 
-                        : "bg-secondary text-foreground rounded-bl-sm border border-border/50"
-                    }`}>
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm leading-relaxed ${
+                        msg.role === "user"
+                          ? "bg-purple-500/20 text-purple-100 rounded-br-sm"
+                          : "bg-secondary text-foreground rounded-bl-sm border border-border/50"
+                      }`}
+                    >
                       {msg.text}
                     </div>
+                    {/* Action Cards */}
+                    {msg.proposedActions && msg.proposedActions.length > 0 && (
+                      <div className="w-[85%] space-y-2 mt-1">
+                        {msg.proposedActions.map((action, idx) => (
+                          <div
+                            key={idx}
+                            className="rounded-lg border border-purple-500/30 bg-purple-500/5 p-3 text-sm"
+                          >
+                            <p className="font-medium text-purple-200 flex items-center gap-1.5 mb-2">
+                              <Bot className="size-3.5" /> Proposed Action
+                            </p>
+                            <p className="text-muted-foreground text-xs mb-3">
+                              {action.type === "task.delete"
+                                ? `Permanently delete this task?`
+                                : action.type === "COMPLETE_GOAL"
+                                  ? `Mark quest "${action.payload.goalTitle || action.payload.goalId}" as complete.`
+                                  : action.type === "START_TIMER"
+                                    ? "Start the focus timer."
+                                    : "Perform dashboard action."}
+                            </p>
+                            {msg.actionStatus === "pending" ? (
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  className="h-7 bg-purple-600 hover:bg-purple-500 text-xs w-full"
+                                  onClick={() => handleAction(msg.id, action, true)}
+                                >
+                                  <Check className="size-3 mr-1" /> Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs w-full"
+                                  onClick={() => handleAction(msg.id, action, false)}
+                                >
+                                  Decline
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="text-xs font-medium flex items-center gap-1.5 opacity-60">
+                                {msg.actionStatus === "accepted" ? (
+                                  <>
+                                    <Check className="size-3.5 text-emerald-400" />{" "}
+                                    <span className="text-emerald-400">Approved & Executed</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <XCircle className="size-3.5 text-red-400" />{" "}
+                                    <span className="text-red-400">Declined</span>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </motion.div>
                 ))
               )}
               {loading && (
                 <div className="flex justify-start">
                   <div className="bg-secondary rounded-2xl rounded-bl-sm px-4 py-3 border border-border/50 flex items-center gap-1">
-                    <motion.div animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0 }} className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
-                    <motion.div animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
-                    <motion.div animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+                    <motion.div
+                      animate={{ y: [0, -3, 0] }}
+                      transition={{ repeat: Infinity, duration: 0.6, delay: 0 }}
+                      className="h-1.5 w-1.5 rounded-full bg-muted-foreground"
+                    />
+                    <motion.div
+                      animate={{ y: [0, -3, 0] }}
+                      transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }}
+                      className="h-1.5 w-1.5 rounded-full bg-muted-foreground"
+                    />
+                    <motion.div
+                      animate={{ y: [0, -3, 0] }}
+                      transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }}
+                      className="h-1.5 w-1.5 rounded-full bg-muted-foreground"
+                    />
                   </div>
                 </div>
               )}
@@ -137,10 +322,10 @@ export function SmartAssistant() {
             {/* Input */}
             <div className="border-t border-border/70 p-3 bg-surface/50">
               <div className="flex items-center gap-2 rounded-lg border border-border bg-background/50 p-1">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className={`h-8 w-8 rounded-md ${isListening ? 'text-coral' : 'text-muted-foreground'}`}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`h-8 w-8 rounded-md ${isListening ? "text-coral" : "text-muted-foreground"}`}
                   onClick={() => setIsListening(!isListening)}
                 >
                   {isListening ? <MicOff className="size-4" /> : <Mic className="size-4" />}
@@ -153,8 +338,8 @@ export function SmartAssistant() {
                   placeholder="Ask me anything..."
                   className="flex-1 bg-transparent px-2 text-sm text-foreground outline-none placeholder:text-muted-foreground"
                 />
-                <Button 
-                  size="icon" 
+                <Button
+                  size="icon"
                   className="h-8 w-8 rounded-md bg-purple-500/20 text-purple-300 hover:bg-purple-500 hover:text-white"
                   onClick={sendMessage}
                   disabled={loading || !input.trim()}

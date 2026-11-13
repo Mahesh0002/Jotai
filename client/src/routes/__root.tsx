@@ -7,12 +7,18 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
-import { DashboardHeader, IntegrationsModal } from "@/components/jotai-widgets";
+import { IntegrationsModal } from "@/components/jotai-widgets";
+import { Sidebar } from "@/components/sidebar";
+import { Topbar } from "@/components/topbar";
 import { SmartAssistant } from "@/components/SmartAssistant";
+import { ProactiveSuggestions } from "@/components/ProactiveSuggestions";
+import { Toaster } from "sonner";
+import { FocusProvider } from "@/contexts/FocusContext";
+import { NotesProvider } from "@/contexts/NotesContext";
+import { SettingsProvider } from "@/contexts/SettingsContext";
 
 function NotFoundComponent() {
   return (
@@ -39,9 +45,6 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -79,17 +82,26 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-       { title: "Jōtai · Personal Operating System" },
-       { name: "description", content: "A focused, gamified productivity dashboard for turning attention into momentum." },
-       { name: "author", content: "Jōtai" },
-       { property: "og:title", content: "Jōtai · Personal Operating System" },
-       { property: "og:description", content: "A focused, gamified productivity dashboard for turning attention into momentum." },
+      { title: "Jōtai · Personal Operating System" },
+      {
+        name: "description",
+        content: "A focused, gamified productivity dashboard for turning attention into momentum.",
+      },
+      { name: "author", content: "Jōtai" },
+      { property: "og:title", content: "Jōtai · Personal Operating System" },
+      {
+        property: "og:description",
+        content: "A focused, gamified productivity dashboard for turning attention into momentum.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:site", content: "@jotai_app" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap",
+      },
     ],
     links: [
       {
@@ -122,23 +134,57 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const [integrationsOpen, setIntegrationsOpen] = useState(false);
-  const [integrations, setIntegrations] = useState<Record<string, boolean>>({ calendar: false, notion: false, spotify: true, github: false, trello: false });
+  const [integrations, setIntegrations] = useState<Record<string, boolean>>({
+    calendar: false,
+    notion: false,
+    spotify: true,
+    github: false,
+    trello: false,
+  });
+
+  // ─── Centralized Assistant Invalidation Handler ────────────────────────────
+  // SmartAssistant dispatches "jotai-invalidate" with a list of query-key strings.
+  // This is the SINGLE listener — no individual component needs to know about it.
+  // Canonical query keys: "tasks" | "goals" | "habits" | "today" | "habitAnalytics" | "focusBlocks"
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const keys = (e as CustomEvent<string[]>).detail;
+      if (!Array.isArray(keys)) return;
+      keys.forEach((key) =>
+        queryClient.invalidateQueries({ queryKey: [key] })
+      );
+    };
+    window.addEventListener("jotai-invalidate", handler);
+    return () => window.removeEventListener("jotai-invalidate", handler);
+  }, [queryClient]);
+  // ──────────────────────────────────────────────────────────────────────────
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-background text-foreground">
-        <DashboardHeader onOpenIntegrations={() => setIntegrationsOpen(true)} />
-        <main className="mx-auto max-w-[1600px] px-4 pb-10 pt-5 sm:px-6 lg:px-8">
-          <Outlet />
-        </main>
-        <IntegrationsModal 
-          open={integrationsOpen} 
-          integrations={integrations} 
-          onToggle={(id) => setIntegrations((current) => ({ ...current, [id]: !current[id] }))} 
-          onClose={() => setIntegrationsOpen(false)} 
-        />
-        <SmartAssistant />
-      </div>
+      <SettingsProvider>
+        <FocusProvider>
+          <NotesProvider>
+            <div className="flex h-screen bg-zinc-950 text-foreground overflow-hidden">
+              <Sidebar onOpenIntegrations={() => setIntegrationsOpen(true)} />
+              <div className="flex-1 flex flex-col overflow-y-auto">
+                <Topbar />
+                <main className="mx-auto w-full max-w-[1600px] p-6">
+                  <Outlet />
+                </main>
+              </div>
+              <IntegrationsModal
+                open={integrationsOpen}
+                integrations={integrations}
+                onToggle={(id) => setIntegrations((current) => ({ ...current, [id]: !current[id] }))}
+                onClose={() => setIntegrationsOpen(false)}
+              />
+              <SmartAssistant />
+              <ProactiveSuggestions />
+              <Toaster theme="dark" position="bottom-right" />
+            </div>
+          </NotesProvider>
+        </FocusProvider>
+      </SettingsProvider>
     </QueryClientProvider>
   );
 }

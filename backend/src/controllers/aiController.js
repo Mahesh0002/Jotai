@@ -18,8 +18,8 @@ const chat = async (req, res, next) => {
       throw new ApiError(400, 'Prompt is required');
     }
     
-    const reply = await aiService.chat(prompt, context);
-    res.status(200).json(new ApiResponse(200, { reply }, 'AI response generated'));
+    const { reply, proposedActions } = await aiService.chat(prompt, context);
+    res.status(200).json(new ApiResponse(200, { reply, proposedActions }, 'AI response generated'));
   } catch (err) {
     next(new ApiError(500, err.message));
   }

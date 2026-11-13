@@ -1,49 +1,47 @@
-import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
-import { cva, type VariantProps } from "class-variance-authority";
+import React from "react";
+import clsx from "clsx";
 
-import { cn } from "@/lib/utils";
-
-const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground shadow hover:bg-primary/90",
-        destructive: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
-        outline:
-          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
-      },
-      size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-10 rounded-md px-8",
-        icon: "h-9 w-9",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  },
-);
-
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
-  asChild?: boolean;
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "primary" | "secondary" | "ghost" | "danger" | "icon";
+  size?: "default" | "sm" | "lg" | "icon";
+  fullWidth?: boolean;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button";
-    return (
-      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
-    );
-  },
-);
-Button.displayName = "Button";
+export function Button({
+  variant = "primary",
+  size = "default",
+  fullWidth = false,
+  className,
+  children,
+  ...props
+}: ButtonProps) {
+  return (
+    <button
+      className={clsx(
+        "inline-flex items-center justify-center font-medium transition-colors focus:outline-none disabled:opacity-50 disabled:pointer-events-none rounded",
+        {
+          // Variants
+          "bg-primary text-white hover:bg-primary-hover shadow-glow": variant === "primary",
+          "bg-surface-elevated border border-border text-text-primary hover:bg-border":
+            variant === "secondary",
+          "text-text-secondary hover:text-text-primary hover:bg-surface-elevated":
+            variant === "ghost",
+          "bg-error/20 border border-error/50 text-error hover:bg-error/30": variant === "danger",
+          "text-text-secondary hover:text-text-primary": variant === "icon",
 
-export { Button, buttonVariants };
+          // Sizes
+          "h-9 px-4 text-[11px]": size === "default" && variant !== "icon",
+          "h-7 px-3 text-[10px]": size === "sm" && variant !== "icon",
+          "h-11 px-6 text-sm": size === "lg" && variant !== "icon",
+          "h-8 w-8": size === "icon" || variant === "icon",
+
+          "w-full": fullWidth,
+        },
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
