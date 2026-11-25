@@ -6,7 +6,7 @@ const EventPublisher = require('../services/eventPublisher');
 // @route   GET /api/v1/tasks
 exports.getTasks = async (req, res, next) => {
   try {
-    const { status, priority, projectId, isStarred, date } = req.query;
+    const { status, priority, projectId, isStarred, date, startDate, endDate } = req.query;
     let query = {}; // TODO: Add userId filtering once auth is wired up
 
     if (status) query.status = status;
@@ -33,6 +33,16 @@ exports.getTasks = async (req, res, next) => {
       query.dueDate = {
         $gte: tomorrow
       };
+    }
+
+    if (startDate || endDate) {
+      const range = {};
+      if (startDate) range.$gte = new Date(startDate);
+      if (endDate) range.$lte = new Date(endDate);
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [{ dueDate: range }, { dueDate: { $exists: false } }, { dueDate: null }]
+      });
     }
 
     const tasks = await Task.find(query).populate('projectId', 'name color').sort({ createdAt: -1 });

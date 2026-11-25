@@ -1,14 +1,19 @@
 const express = require('express');
-const { getContext, createSuggestion, getSuggestions, updateSuggestionStatus } = require('../controllers/assistantController');
+const {
+  getContext,
+  createSuggestion,
+  getSuggestions,
+  updateSuggestionStatus
+} = require('../controllers/assistantController');
 const serviceAuth = require('../middlewares/serviceAuth');
 
 const router = express.Router();
 
-// Apply serviceAuth so the Python Runner can access these endpoints
-router.use(serviceAuth);
+// Runner-only writes and context snapshot.
+router.get('/context', serviceAuth, getContext);
+router.post('/suggestions', serviceAuth, createSuggestion);
 
-router.get('/context', getContext);
-router.post('/suggestions', createSuggestion);
+// Local UI routes.
 router.get('/suggestions', getSuggestions);
 router.post('/suggestions/:id/:action', updateSuggestionStatus);
 

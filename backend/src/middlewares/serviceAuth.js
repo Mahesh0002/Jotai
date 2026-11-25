@@ -1,29 +1,46 @@
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const ApiError = require('../utils/ApiError');
 
+function tokensEqual(left, right) {
+  if (!left || !right) return false;
+  const a = Buffer.from(String(left));
+  const b = Buffer.from(String(right));
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+/**
+ * Accepts EITHER a valid user JWT OR the Runner service token.
+ * - service token -> req.service = 'runner' (and optional impersonation header)
+ * - user JWT      -> req.user = decoded claims
+ * Missing/invalid credentials are rejected with 401.
+ */
 const serviceAuth = (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
+  const header = req.headers.authorization || '';
+  const [scheme, token] = header.split(' ');
 
-      // Check for service token (OR-logic layer)
-      if (config.runnerServiceToken && token === config.runnerServiceToken) {
-        req.service = 'runner';
-        return next();
-      }
-      
-      // If we had strict JWT logic, we would verify here.
-      // But since the frontend doesn't send JWTs in this local single-user app,
-      // we just let it fall through.
+  if (scheme !== 'Bearer' || !token) {
+    return next(new ApiError(401, 'Authentication required'));
+  }
+
+  if (config.runnerServiceToken && tokensEqual(token, config.runnerServiceToken)) {
+    req.service = 'runner';
+    // Honored only on the service-token path.
+    if (req.headers['x-jotai-user-id']) {
+      req.authUserId = req.headers['x-jotai-user-id'];
     }
+    return next();
+  }
 
-    // Pass through normal frontend requests
-    next();
+  try {
+    req.user = jwt.verify(token, config.jwtSecret);
+    return next();
   } catch (error) {
-    next();
+    return next(new ApiError(401, 'Invalid or expired token'));
   }
 };
 
 module.exports = serviceAuth;
+module.exports.tokensEqual = tokensEqual;

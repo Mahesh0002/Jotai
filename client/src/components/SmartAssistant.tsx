@@ -3,7 +3,7 @@ import { X, Mic, MicOff, Send, Bot, Check, XCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 
-type ProposedAction = { type: string; payload: any };
+type ProposedAction = { type: string; payload: any; actionId?: string };
 type Message = {
   id: string;
   role: "user" | "assistant";
@@ -19,6 +19,19 @@ export function SmartAssistant() {
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isListening, setIsListening] = useState(false);
+  const sessionIdRef = useRef<string>(
+    (() => {
+      try {
+        const existing = localStorage.getItem("jotai_session");
+        if (existing) return existing;
+        const created = crypto.randomUUID();
+        localStorage.setItem("jotai_session", created);
+        return created;
+      } catch (e) {
+        return `session-${Date.now()}`;
+      }
+    })(),
+  );
 
   useEffect(() => {
     try {
@@ -55,7 +68,8 @@ export function SmartAssistant() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             actionName: action.type,
-            params: action.payload
+            params: action.payload,
+            actionId: action.actionId
           }),
         });
 
@@ -97,7 +111,8 @@ export function SmartAssistant() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          intent: userMsg
+          intent: userMsg,
+          sessionId: sessionIdRef.current
         }),
       });
 
@@ -157,7 +172,7 @@ export function SmartAssistant() {
         {
           id: (Date.now() + 1).toString(),
           role: "assistant",
-          text: "System offline. Please check your backend connection on port 5000.",
+          text: "System offline. Please check the Runner connection on port 8000.",
         },
       ]);
     } finally {

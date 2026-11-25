@@ -1,16 +1,14 @@
 import requests
-import json
-from config import settings, HEADERS
+
+from runner.config import HEADERS, settings
+
 
 def get_aggregated_context():
-    """
-    Fetches the lightweight, structured context snapshot from the Node.js backend.
-    """
+    """Fetch the lightweight context snapshot from the Node backend."""
     try:
-        response = requests.get(f"{settings.NODE_API_URL}/assistant/context", headers=HEADERS)
+        response = requests.get(f"{settings.NODE_API_URL}/assistant/context", headers=HEADERS, timeout=10)
         response.raise_for_status()
-        data = response.json()
-        return data.get("data", {})
-    except Exception as e:
-        print(f"[ContextEngine] Failed to fetch context: {e}")
+        return response.json().get("data", {})
+    except Exception as exc:
+        print(f"[ContextEngine] Failed to fetch context: {exc}")
         return {}

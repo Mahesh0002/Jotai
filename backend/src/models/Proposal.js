@@ -4,7 +4,7 @@ const ProposalSchema = new mongoose.Schema({
   type: {
     type: String,
     required: true,
-    enum: ['schedule_proposal', 'habit_insight']
+    enum: ['schedule_proposal', 'habit_insight', 'subtask_suggestion']
   },
   data: {
     type: mongoose.Schema.Types.Mixed,

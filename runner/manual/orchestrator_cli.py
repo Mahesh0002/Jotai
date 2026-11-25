@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()
-from agents.orchestrator import run_orchestrator
+from runner.agents.orchestrator import run_orchestrator
 
 if __name__ == "__main__":
     import sys

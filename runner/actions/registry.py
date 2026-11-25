@@ -1,46 +1,67 @@
-from typing import Dict, Any, Callable
 import uuid
+from typing import Any, Callable, Dict, Optional
+
+from runner.services.confirmation_store import confirmation_store
+
 
 class ActionRegistry:
     def __init__(self):
-        self.actions = {}
+        self.actions: Dict[str, Dict[str, Any]] = {}
 
-    def register(self, name: str, description: str, handler: Callable, requires_confirmation: bool = False):
+    def register(
+        self,
+        name: str,
+        description: str,
+        handler: Callable,
+        requires_confirmation: bool = False,
+    ) -> None:
         self.actions[name] = {
             "name": name,
             "description": description,
             "handler": handler,
-            "requires_confirmation": requires_confirmation
+            "requires_confirmation": requires_confirmation,
         }
 
-    def execute(self, name: str, params: Dict[str, Any]):
+    def unregister(self, name: str) -> None:
+        self.actions.pop(name, None)
+
+    def execute(
+        self,
+        name: str,
+        params: Dict[str, Any],
+        confirmed_action_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         if name not in self.actions:
             raise ValueError(f"Action {name} not found in registry")
-            
+
         action = self.actions[name]
-        
-        # Check confirmation logic
-        if action["requires_confirmation"] and not params.get("_confirmed", False):
-            # Generate a stable action_id so the frontend can approve this specific action
-            action_id = str(uuid.uuid4())
-            return {
-                "success": True,
-                "confirmationRequired": True,
-                "actionId": action_id,
-                "actionName": name,
-                "params": params,
-                "message": f"Confirmation required for action: {action['description']}"
-            }
-        
-        # Remove internal param before passing to node
-        if "_confirmed" in params:
-            del params["_confirmed"]
-        
-        # Generate an actionId for idempotency if it wasn't already generated during confirmation
-        if "actionId" not in params:
-            params["actionId"] = str(uuid.uuid4())
-        
-        # The handler (which makes the Node API request) executes
+        params = dict(params)
+
+        if action["requires_confirmation"]:
+            if not confirmed_action_id:
+                action_id = confirmation_store.create(name, params)
+                return {
+                    "success": True,
+                    "confirmationRequired": True,
+                    "actionId": action_id,
+                    "actionName": name,
+                    "params": {**params, "actionId": action_id},
+                    "message": f"Confirmation required for action: {action['description']}",
+                }
+
+            pending = confirmation_store.consume(confirmed_action_id, name)
+            if not pending:
+                return {
+                    "success": False,
+                    "confirmationRequired": True,
+                    "message": "Confirmation expired or invalid. Please ask again.",
+                }
+            # Execute the stored params, not client-supplied ones, so a caller
+            # cannot approve one action and swap its payload afterwards.
+            params = {**pending["params"], "actionId": confirmed_action_id}
+
+        params.setdefault("actionId", uuid.uuid4().hex)
         return action["handler"](params)
+
 
 registry = ActionRegistry()

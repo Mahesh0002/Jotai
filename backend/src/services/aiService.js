@@ -38,7 +38,7 @@ const chat = async (prompt, systemContext = '') => {
 
   // Use a valid model
   const model = genAI.getGenerativeModel({
-    model: 'gemini-3.6-flash',
+    model: config.geminiModel,
     systemInstruction: systemContext || 'You are Jotai\'s Smart Assistant.',
     tools: [{ functionDeclarations }],
   });
@@ -101,7 +101,7 @@ const agenticChat = async (payload) => {
   // Since we are building an agentic backend, we'll keep the REST proxy 
   // for the exact frontend compatibility for now.
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${config.geminiApiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel}:generateContent?key=${config.geminiApiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

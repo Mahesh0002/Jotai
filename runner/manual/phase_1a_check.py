@@ -2,7 +2,7 @@ import requests
 import uuid
 import time
 import json
-from config import settings, HEADERS
+from runner.config import settings, HEADERS
 
 def run_tests():
     print("=== Phase 1A Verification Pass ===\n")
@@ -80,8 +80,8 @@ def run_tests():
     
     # 5. Python Action Registry
     print("\nTesting Python Action Registry...")
-    from actions.registry import registry
-    import actions.task_actions # register them
+    from runner.actions.registry import registry
+    import runner.actions.task_actions # register them
     
     try:
         result = registry.execute("task.create", {"title": "Registry Test Task"})

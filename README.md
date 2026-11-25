@@ -1,106 +1,139 @@
-# Jötai: The Operating System for Focus
+# Jōtai — Gamified Productivity OS + Local Agentic Runner
 
-Jötai is a comprehensive, gamified execution engine and productivity operating system. It moves beyond the concept of a "dashboard" or a collection of static widgets, providing a rigorously engineered, deeply integrated pipeline that bridges the gap between intention and action.
+Jōtai is a React + Node/Express productivity app (tasks, focus blocks, habits,
+goals, notes) with a separate **local Python FastAPI agent service** called the
+**Jötai Runner**. The Runner turns natural-language requests into tool calls
+against the Node REST API, using a hand-written tool loop and a
+propose → confirm → execute flow.
 
-The system is built on a single continuous data flow:
-**Execute → Understand → Analyze → Improve**
-
-Every visible control in Jötai maps to a defined backend action. There are no fabricated dashboard statistics. If the system says you have a 12-day streak or a 94% task completion rate, it is mathematically derived from immutable database records.
-
----
-
-## 🧠 Core Philosophy & Architecture
-
-The fundamental principle of Jötai is that productivity tools should not distract you. The UI is designed to be visually stunning (Cyberpunk/Neumorphic aesthetic) but operationally invisible during execution. 
-
-### The Execution Pipeline
-Data in Jötai flows automatically from planning to execution to analytics:
-1. **Tasks** are defined, prioritized, and estimated.
-2. Tasks are assigned to **Focus Blocks** within the **Focus Plan**.
-3. Focus Blocks are executed in the **Focus Workspace** (a distraction-free zone).
-4. Execution data (time spent, completion status, distractions) is saved immutably.
-5. This data feeds the **Insights** engine and awards XP in the **Progress** engine.
-6. The **Jötai Runner (AI)** analyzes this historical data to optimize tomorrow's Focus Plan.
+This README describes what is actually implemented and tested in this repo.
+Anything not built is under **Roadmap** below.
 
 ---
 
-## ⚙️ The 8 Core Modules (System Specification)
+## Architecture
 
-### 1. Tasks (The Execution Hub)
-The central repository for actionable items.
-- **Hierarchical Structure**: Supports Projects, Tasks, and Subtasks.
-- **Workflow**: Tasks contain metadata (priority, estimated duration, due dates).
-- **Interactivity**: Keyboard-driven workflows (`N` to create, `Esc` to close) with instantaneous optimistic UI updates via React Query.
+| Layer | Stack | Location |
+|---|---|---|
+| Frontend | React, TanStack Router/Query, Tailwind | `client/` |
+| Backend | Node.js, Express, MongoDB/Mongoose | `backend/` |
+| Agent runner | Python 3, FastAPI, `google-genai`, tenacity | `runner/` |
 
-### 2. Focus Plan (The Timeline)
-The bridge between theoretical tasks and concrete execution.
-- **Function**: Translates the daily task list into an executable timeline (e.g., 8:00 AM to 8:00 PM).
-- **Mechanics**: Supports drag-and-drop scheduling, resizing duration, and resolving overlaps.
-- **State Awareness**: Includes a live "Now" indicator. Future dates show schedules; past dates show immutable completion records.
+Data flow for assistant actions:
 
-### 3. Focus Workspace (The Execution Vessel)
-The environment where actual work happens.
-- **Distraction-Free Design**: Enforces the visual hierarchy of *Task > Timer > Waveform*. All navigation can be stripped away in true Focus Mode.
-- **Zero-Drift Timers**: Timers calculate `targetEndTime - Date.now()`. They do not rely on brittle browser `setInterval` decrements, allowing them to survive background throttling, computer sleep, or browser crashes.
-- **Web Audio Integration**: Features a live synthetic/audio-reactive waveform that visually grounds the timer, making it feel alive without being distracting.
-- **Decoupled Completion**: Finishing a timer does *not* automatically complete a task. The system explicitly asks for the task outcome to maintain data integrity.
+```
+SmartAssistant.tsx
+  → POST :8000/api/runner/trigger
+  → intent router (exact → keyword rules → LLM → UNKNOWN)
+  → orchestrator decides tool(s)
+  → Action Registry
+  → Node REST API (:5000/api/v1)
+  → MongoDB
+```
 
-### 4. Habits (The Momentum Engine)
-A rigorous system for tracking recurring behaviors that aren't single-execution tasks.
-- **Data Integrity**: Separates the Habit *Definition* (schedule, XP reward) from the Habit *Completion* (an immutable time-stamped log). Editing a habit's schedule today does not corrupt last month's streak data.
-- **Analytics**: Calculates a dynamic "Habit Score" based on consistency, streak stability, and schedule adherence.
-- **Impact Correlation**: Analyzes the relationship between habits and deep work (e.g., "Days with Morning Planning result in 24% higher task completion").
-- **UI/UX**: Lightning-fast optimistic toggles (`<100ms`) with satisfying micro-animations (`+10 XP` float) to reinforce positive psychological loops.
+Python never connects to MongoDB. All reads/writes go through the Node API.
+The Runner authenticates to Node with `RUNNER_SERVICE_TOKEN` (Bearer).
 
-### 5. Calendar (The Macroscopic View) *[In Development]*
-- **Function**: Deep integration with the Focus Plan to view long-term timelines, upcoming project deadlines, and historical execution heatmaps.
+## What is implemented
 
-### 6. Insights (The Analytics Engine) *[In Development]*
-- **Function**: A deep analytics dashboard that digests Focus Data, Habit Trends, and Task completion rates.
-- **Goal**: To answer "When am I most productive?" and "What habits actually improve my output?" rather than just showing arbitrary graphs.
+### Web app
+- Tasks, projects, focus blocks, habits (definitions + completions), goals,
+  notes, analytics endpoints, and the dashboard UI.
+- No login flow is wired into the UI; see **Known limitations**.
 
-### 7. Progress (The RPG Gamification Engine) *[In Development]*
-- **Function**: Converts consistency into tangible momentum.
-- **Mechanics**: Earned XP from completing tasks, habits, and focus blocks feeds into levels and skill trees. Specific focus types (e.g., "Deep Work", "Creative", "Study") act as RPG proficiencies that level up dynamically.
+### Jötai Runner
+- **Provider abstraction** — `runner/llm_provider.py` defines
+  `BaseLLMProvider`, `GeminiProvider`, `StubProvider`; selection is via
+  `LLM_PROVIDER` (`stub` is the default). Agents never import the Gemini SDK.
+- **Hand-written tool loop** — Gemini Automatic Function Calling is explicitly
+  disabled; the agent sees and executes tool calls itself.
+- **429-only retry** — tenacity retries only HTTP 429 (`is_rate_limit_error`),
+  never 400/401/403.
+- **Bounded self-correction** — the planning agent caps revisions at 3 and
+  submits a flagged best-effort result.
+- **Propose → confirm → execute** — deletes require a single-use confirmation
+  `actionId`; the store is in-memory and expires (`PENDING_ACTION_TTL_SECONDS`).
+- **Deterministic math** — durations, habit counts/streaks, and the preference
+  profile are computed in Python (`runner/services/stats.py`); the LLM only
+  narrates those numbers.
+- **N-way intent routing** — `TASK | GOAL | HABIT | PLAN | INSIGHT | UNKNOWN`
+  with exact triggers, keyword rules, then an LLM classifier; `UNKNOWN` asks a
+  clarifying question instead of defaulting to PLAN.
+- **Bounded chat context** — server-side history capped at 6 turns plus one
+  pending confirmation (`runner/services/conversation_store.py`).
+- **Calendar-aware planning** — planning checks blocks against the Node
+  calendar endpoint and forces a revision on conflict. **Note:** that endpoint
+  currently returns synthetic events (`backend/src/controllers/todayController.js`),
+  not a real calendar integration.
+- **Task helpers** — `estimate_duration` (median of similar completed tasks,
+  no LLM in the number) and `suggest_subtasks` (LLM output goes to a proposal,
+  never auto-applied).
+- **Decision log + preference profile** — proposal accept/reject writes a
+  `DecisionLog` via Node; a pure-Python profiler injects a ≤150-token summary
+  into planning/habit prompts. This is deterministic aggregation, not ML.
 
-### 8. Notes & Inventory *[In Development]*
-- **Function**: A robust markdown-based knowledge base directly tied to tasks and projects. Session notes taken during a Focus Block are automatically appended to the respective Task history.
+## Tests
 
----
+```bash
+# Python runner (stub provider, no live model calls)
+LLM_PROVIDER=stub python -m pytest runner/ -q
 
-## 🤖 The Jötai Runner (AI Coach)
-Jötai features an integrated AI assistant that goes beyond conversational chatbots.
-- **Context-Aware Recommendations**: By reading the Insights engine, the AI can propose concrete schedule changes (e.g., "You have a deep work block at 2 PM, but historical data shows your focus drops by 40% after lunch. Move to 10 AM?").
-- **Non-Destructive Conflict Resolution**: When auto-planning, the AI generates a proposal layer over the Focus Plan. It never silently overwrites the user's explicit schedule without review.
+# Node backend (serviceAuth + proposal decision logs)
+cd backend && npm test
+```
 
----
+The suite covers the router (rule/exact/LLM/UNKNOWN table), bounded history,
+pending confirmations, confirmation single-use, duration math, habit stats,
+preference profiling, planning/calendar conflict revision, proposal decisions,
+and `serviceAuth` (missing/invalid/service/user-JWT/impersonation).
 
-## 💻 Technical Architecture
+## Run locally
 
-Jötai is engineered as a modern, high-performance web application.
+```bash
+# 1. Node backend
+cd backend
+npm install
+cp .env.example .env      # or create one
+# MONGODB_URI, RUNNER_SERVICE_TOKEN, JWT_SECRET...
+npm start                 # http://localhost:5000
 
-- **Frontend**: React.js, TailwindCSS (strict custom Design System tokens), React Query (for optimistic caching and state synchronization), Web Audio API, Lucide Icons.
-- **Backend**: Node.js, Express.js.
-- **Database**: MongoDB / Mongoose.
-- **Animation Philosophy**: "Fast, deliberate, controlled." Micro-interactions resolve in 100-150ms. Standard transitions take 150-250ms. Complex task movements take 250-350ms. No lingering or overly bouncy animations.
+# 2. Runner
+python -m venv .venv
+. .venv/bin/activate
+pip install -r runner/requirements.txt
+cp runner/.env.example runner/.env
+LLM_PROVIDER=stub uvicorn runner.app:app --reload --port 8000
 
----
+# 3. Frontend
+cd client
+npm install
+npm run dev
+```
 
-## 📊 Project Status & Roadmap
+Use the same `RUNNER_SERVICE_TOKEN` on both sides. For live Gemini calls set
+`LLM_PROVIDER=gemini` and `GEMINI_API_KEY`; the default is the stub.
 
-### ✅ Completed & Engineered
-The backend APIs, MongoDB schemas, and frontend UI/UX logic for the following systems are fully implemented and in production-ready state:
-1. **Tasks Module** (Hierarchical CRUD, React Query integration)
-2. **Focus Plan** (Timeline generation, Block Modal, Real-time rendering)
-3. **Focus Workspace** (Absolute timers, Waveform rendering, Distraction logging)
-4. **Habits Engine** (Split Schema data integrity, Optimistic UX toggling, Score/Streak calculations)
+## Roadmap (not built)
 
-### 🚧 Current Development (Next Up)
-1. **Calendar Module**: Expanding the Focus Plan into a macroscopic monthly/weekly view.
-2. **Insights Module**: Building the visual charts and correlation algorithms to power Habit Impact and Focus Quality metrics.
-3. **Progress Module**: Implementing the XP accumulation algorithms and the RPG leveling system.
+- Real calendar integration (the current `/today/calendar` data is synthetic).
+- Insights narrative pipeline (weekly stats + one narration call).
+- Progress/RPG XP visualizations beyond the current Runner/profile screens.
+- Notes semantic search (needs an embedding store).
+- Local inference via llama.cpp (`LocalLlamaProvider`) and real benchmarks.
+- Multi-user scoping and a login flow for the UI.
 
-### 🔮 Future Scope
-- **Offline-First Resilience**: Implementing Service Workers and local indexedDB caching so the Focus Workspace functions flawlessly on an airplane, syncing session data automatically upon reconnection.
-- **External Integrations**: Native sync with GitHub (for developer tasks), Google Calendar, and Spotify (for Focus Workspace audio).
-- **Mobile PWA**: Ensuring the UI scales perfectly to mobile devices for on-the-go Habit tracking and Task capture.
+## Known limitations
+
+- **Local-only, single-process.** Chat history and pending confirmations live
+  in memory and are lost on restart.
+- **No per-user scoping.** The Node API does not filter by user; `userId` exists
+  on tasks but is not populated. Do not deploy this publicly as-is.
+- **Auth split.** `serviceAuth` is strict for Runner-facing writes
+  (`POST /proposals`, `GET /proposals/decisions`, assistant context/suggestions).
+  The local UI routes (tasks/habits/focus) remain unauthenticated because no
+  login flow exists yet.
+- **Synthetic calendar.** Planning conflict checks run against mock events.
+- **Free-tier privacy.** Gemini free-tier content may be used by Google; use
+  synthetic data for demos and tests.
+- **No ML/learning claim.** The planner adapts only through the deterministic
+  accept/reject profile described above.

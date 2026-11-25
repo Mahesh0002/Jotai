@@ -1,65 +1,115 @@
 # Smart Assistant Command Flow
 
-This document explains how commands—such as creating, completing, or deleting tasks—are processed by the Smart Assistant architecture.
+How a chat message becomes a task, goal, habit, plan, or insight.
 
-## 1. User Intent (Frontend)
-When the user types a message in the `SmartAssistant.tsx` chat (e.g., "Delete task"), the frontend sends the raw text to the Python Runner's trigger endpoint:
+## 1. User intent (frontend)
+
+`client/src/components/SmartAssistant.tsx` sends the raw text plus a stable
+`sessionId`:
 
 ```http
 POST http://localhost:8000/api/runner/trigger
 Content-Type: application/json
 
 {
-  "intent": "Delete task 'Buy groceries'"
-}W
+  "intent": "Delete task 'Buy groceries'",
+  "sessionId": "b0f2..."
+}
 ```
 
-## 2. Intent Processing (Runner)
-The Python Runner processes this intent to figure out which action needs to run. It matches the intent against registered actions (such as `task.create`, `task.complete`, or `task.delete` found in `runner/actions/task_actions.py`).
+The Runner keeps the last 6 turns server-side (`CHAT_HISTORY_TURNS`); the
+client never sends unbounded history.
 
-- **If the action requires confirmation** (e.g., `task.delete` has `requires_confirmation=True`):
-  The runner returns a response indicating `confirmationRequired: true`, along with the `actionName` and `params`.
-- The frontend then renders a "Proposed Action" card in the chat, prompting the user to **Approve** or **Decline**.
+## 2. Routing (`runner/agents/router.py`)
 
-## 3. Action Execution (Frontend to Runner)
-If the user approves the action, the frontend calls the runner's execute endpoint:
+The router runs in this order:
+
+1. **Exact trigger** — scheduled/programmatic names such as `plan_tomorrow`,
+   `habit_insight`, `task.delete`.
+2. **Keyword rules** — deterministic keyword scores per intent.
+3. **LLM classifier** — only when the rules tie or find nothing.
+4. **UNKNOWN** — asks a clarifying question. It never silently defaults to PLAN.
+
+Every classification logs the raw input, the chosen intent, and the stage.
+
+## 3. Orchestrator (`runner/agents/orchestrator.py`)
+
+- `TASK` / `GOAL` / `HABIT` → one LLM call with the domain's tool list.
+- `PLAN` → `runner/agents/planning.py`.
+- `INSIGHT` → `runner/agents/habit_insight.py`.
+- `UNKNOWN` → static clarification.
+
+The LLM never executes Python callables itself: Automatic Function Calling is
+disabled, and the orchestrator routes the returned function call to the Action
+Registry.
+
+## 4. Confirmation (destructive actions)
+
+`task.delete`, `goal.delete`, and `habit.delete` are registered with
+`requires_confirmation=True`. The trigger response contains:
+
+```json
+{
+  "success": true,
+  "data": {
+    "reply": "Confirmation required...",
+    "actionResult": {
+      "confirmationRequired": true,
+      "actionId": "...",
+      "actionName": "task.delete",
+      "params": { "taskId": "123", "actionId": "..." }
+    }
+  }
+}
+```
+
+The UI renders Approve/Decline. Approve calls:
 
 ```http
 POST http://localhost:8000/api/runner/execute
 Content-Type: application/json
 
-{
-  "actionName": "task.delete",
-  "params": {
-    "taskId": "12345",
-    "actionId": "..."
-  }
-}
+{ "actionName": "task.delete", "params": { "taskId": "123" }, "actionId": "..." }
 ```
 
-## 4. Action Handlers (Runner to Node Backend)
-The runner routes the execution request to the appropriate handler registered in `registry.py`. 
-For tasks, these handlers (`task_actions.py`) communicate directly with the main Node.js backend REST API to mutate the database:
+The store consumes the `actionId` exactly once, validates the action name, and
+executes the **stored** params (so the payload cannot be swapped after
+approval). Expired or replayed IDs are rejected.
 
-- **Create Task (`task.create`)**: Makes a `POST` to `NODE_API_URL/tasks`
-- **Complete Task (`task.complete`)**: Makes a `POST` to `NODE_API_URL/tasks/{id}/complete`
-- **Delete Task (`task.delete`)**: Makes a `DELETE` to `NODE_API_URL/tasks/{id}`
+## 5. Action handlers (Runner → Node)
 
-```python
-# Example from task_actions.py
-def task_delete_handler(params: dict):
-    task_id = params.get("taskId")
-    response = requests.delete(f"{settings.NODE_API_URL}/tasks/{task_id}", ...)
-    return response.json()
+Handlers in `runner/actions/*.py` call the Node REST API with the service token:
+
+- `task.create` → `POST /api/v1/tasks`
+- `task.complete` → `POST /api/v1/tasks/:id/complete`
+- `task.delete` → `DELETE /api/v1/tasks/:id`
+- `goal.create` / `goal.delete` → `/api/v1/goals`
+- `habit.create` / `habit.delete` → `/api/v1/habits`
+
+Python never connects to MongoDB.
+
+## 6. Proposals (planning / habit insight / subtasks)
+
+Planning and insight agents call `POST /api/v1/proposals` instead of mutating
+schedules or tasks. The user accepts/rejects via:
+
+```http
+PATCH http://localhost:5000/api/v1/proposals/:id/status
+{ "status": "accepted" }
 ```
 
-## 5. UI Invalidation
-Once the Node backend completes the action and responds to the runner, the runner passes the result back to the frontend.
+Accepted/rejected proposals write a `DecisionLog` record. The pure-Python
+profiler (`runner/services/stats.py`) aggregates those logs into a short
+preference profile, which is injected into planning and habit prompts.
 
-If the response contains `ui.invalidate` instructions, the frontend dispatches a custom event:
-```javascript
-window.dispatchEvent(
-  new CustomEvent("jotai-invalidate", { detail: data.data.actionResult.ui.invalidate })
-);
-```
-This triggers TanStack Query to refetch the necessary data, updating the dashboard UI seamlessly without a page reload.
+## 7. UI invalidation
+
+Node action responses may include `ui.invalidate`. The frontend dispatches a
+`jotai-invalidate` event so TanStack Query refetches affected data without a
+page reload.
+
+## Stub mode
+
+With `LLM_PROVIDER=stub` (default), no live model is called. Tests script the
+stub provider's responses. Stub mode is for tests and local plumbing checks, not
+for demonstrating real tool selection.

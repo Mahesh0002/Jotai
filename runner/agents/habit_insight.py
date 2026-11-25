@@ -1,61 +1,82 @@
 import json
 from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Any, Dict
 
-from ..api_client import api_client
-from ..llm_provider import get_llm_provider
+from runner.api_client import api_client
+from runner.llm_provider import get_llm_provider
+from runner.services.stats import (
+    build_preference_profile,
+    format_habit_stats,
+    summarize_habit_consistency,
+)
+
+
+def _strip_fences(content: str) -> str:
+    content = (content or "").strip()
+    if content.startswith("```json"):
+        content = content[7:]
+    elif content.startswith("```"):
+        content = content[3:]
+    if content.endswith("```"):
+        content = content[:-3]
+    return content.strip()
+
 
 def run_habit_insight_agent() -> Dict[str, Any]:
+    """Compute stats in Python, then let the LLM narrate them.
+
+    The model never calculates a correlation or a count; it only writes prose
+    around the deterministic `stats` object.
+    """
     llm = get_llm_provider()
-    
-    # Get past 7 days of data
     end_date = datetime.now()
     start_date = end_date - timedelta(days=7)
-    
     start_str = start_date.isoformat()
     end_str = end_date.isoformat()
-    
-    habits = api_client.get_habit_logs(start_date=start_str, end_date=end_str)
+
+    consistency = api_client.get_habit_consistency(start_date=start_str, end_date=end_str)
     focus = api_client.get_focus_history(start_date=start_str, end_date=end_str)
-    
+    stats = summarize_habit_consistency(consistency, focus)
+    stats_text = format_habit_stats(stats)
+    try:
+        profile = build_preference_profile(api_client.get_decision_logs())
+    except Exception:
+        profile = "No past proposal decisions recorded."
+
     prompt = f"""
-    You are an AI habit and productivity analyst.
-    Analyze the user's habits and focus blocks over the last 7 days.
-    Identify one actionable correlation or insight.
-    
-    Habit Data:
-    {json.dumps(habits, indent=2)}
-    
-    Focus Block Data:
-    {json.dumps(focus, indent=2)}
-    
-    Return a single JSON object with keys:
-    "title": A short title for the insight.
-    "description": A 1-2 sentence description.
-    "action": A suggested action.
-    
-    Output ONLY valid JSON.
-    """
-    
+You are a productivity analyst writing a short note for the user.
+
+These numbers were computed in Python. Use them verbatim. Do NOT calculate,
+estimate, infer or invent any number, percentage, streak or correlation.
+
+Computed stats:
+{stats_text}
+
+{profile}
+
+Return a single JSON object with keys:
+"title": A short title.
+"description": A 1-2 sentence narration of the numbers above.
+"action": One concrete next step.
+Output ONLY valid JSON.
+"""
+
     response = llm.generate(prompt)
-    content = response.content.strip()
-    
-    # Strip markdown block if any
-    if content.startswith("```json"):
-        content = content[7:-3]
-    elif content.startswith("```"):
-        content = content[3:-3]
-        
+    content = _strip_fences(response.content)
     try:
         insight = json.loads(content)
+        narrated = True
     except json.JSONDecodeError:
         insight = {
-            "title": "Could not parse insight",
-            "description": "The AI provided an insight but it was not in valid JSON format.",
-            "action": "Check the raw AI output in logs.",
-            "raw": content
+            "title": "Habit summary",
+            "description": stats_text,
+            "action": "Review the habit summary above.",
         }
-        
-    # Submit to node backend
-    proposal = api_client.create_proposal("habit_insight", insight)
-    return proposal
+        narrated = False
+
+    insight["stats"] = stats
+    insight["narrated"] = narrated
+    if not narrated:
+        insight["raw"] = content
+
+    return api_client.create_proposal("habit_insight", insight)

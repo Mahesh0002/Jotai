@@ -68,21 +68,45 @@ exports.getSummary = async (req, res) => {
     }
 };
 
-// GET /api/v1/today/calendar
+// GET /api/v1/today/calendar?startDate=...&endDate=...
+// NOTE: synthetic events, not a real calendar integration. The Runner labels
+// this data as synthetic in its planning prompt.
 exports.getCalendarEvents = async (req, res) => {
     try {
-        // Mocking real calendar events
-        const todayStr = new Date().toISOString().split('T')[0];
-        
-        const events = [
-            { title: "NLP Lecture", detail: "CS Building, Room 301", start: new Date(`${todayStr}T10:00:00`).getTime(), color: "bg-purple-500" },
-            { title: "Project Meeting", detail: "Online", start: new Date(`${todayStr}T13:30:00`).getTime(), color: "bg-blue-500" },
-            { title: "Gym", detail: "Downtown Fitness", start: new Date(`${todayStr}T16:00:00`).getTime(), color: "bg-emerald-500" },
-            { title: "Assignment Deadline", detail: "NLP Assignment", start: new Date(`${todayStr}T18:00:00`).getTime(), color: "bg-red-500" },
-            { title: "Dinner", detail: "With Sarah", start: new Date(`${todayStr}T19:30:00`).getTime(), color: "bg-amber-500" }
+        const start = req.query.startDate ? new Date(req.query.startDate) : new Date();
+        const end = req.query.endDate
+            ? new Date(req.query.endDate)
+            : new Date(start.getTime() + 24 * 60 * 60 * 1000);
+
+        const templates = [
+            { title: "NLP Lecture", detail: "CS Building, Room 301", time: "10:00", minutes: 60, color: "bg-purple-500" },
+            { title: "Project Meeting", detail: "Online", time: "13:30", minutes: 45, color: "bg-blue-500" },
+            { title: "Gym", detail: "Downtown Fitness", time: "16:00", minutes: 60, color: "bg-emerald-500" },
+            { title: "Assignment Deadline", detail: "NLP Assignment", time: "18:00", minutes: 30, color: "bg-red-500" },
+            { title: "Dinner", detail: "With Sarah", time: "19:30", minutes: 60, color: "bg-amber-500" }
         ];
 
-        res.json({ success: true, data: events });
+        const events = [];
+        const cursor = new Date(start);
+        cursor.setHours(0, 0, 0, 0);
+        let day = 0;
+        while (cursor < end && day < 14) {
+            const dayStr = cursor.toISOString().split('T')[0];
+            for (const template of templates) {
+                const eventStart = new Date(`${dayStr}T${template.time}:00`);
+                events.push({
+                    title: template.title,
+                    detail: template.detail,
+                    start: eventStart.getTime(),
+                    end: eventStart.getTime() + template.minutes * 60 * 1000,
+                    color: template.color
+                });
+            }
+            cursor.setDate(cursor.getDate() + 1);
+            day += 1;
+        }
+
+        res.json({ success: true, data: events, synthetic: true });
     } catch (error) {
         console.error("Error in getCalendarEvents:", error);
         res.status(500).json({ success: false, message: error.message });

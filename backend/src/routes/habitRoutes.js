@@ -10,10 +10,8 @@ const {
   getAnalytics,
   getConsistency
 } = require('../controllers/habitCompletionController');
-const serviceAuth = require('../middlewares/serviceAuth');
-
+// Local single-user UI routes; see docs/STATUS.md (no login flow yet).
 const router = express.Router();
-router.use(serviceAuth);
 
 router.route('/analytics').get(getAnalytics);
 router.route('/consistency').get(getConsistency);

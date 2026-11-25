@@ -2,19 +2,19 @@ const express = require('express');
 const {
   createProposal,
   getProposals,
-  updateProposalStatus
+  updateProposalStatus,
+  getDecisionLogs
 } = require('../controllers/proposalController');
 const serviceAuth = require('../middlewares/serviceAuth');
 
 const router = express.Router();
 
-router.use(serviceAuth);
+// Runner-only: creating proposals and reading the decision log.
+router.get('/decisions', serviceAuth, getDecisionLogs);
+router.post('/', serviceAuth, createProposal);
 
-router.route('/')
-  .get(getProposals)
-  .post(createProposal);
-
-router.route('/:id/status')
-  .patch(updateProposalStatus);
+// Local UI routes (no login flow yet; see docs/STATUS.md limitation).
+router.get('/', getProposals);
+router.patch('/:id/status', updateProposalStatus);
 
 module.exports = router;

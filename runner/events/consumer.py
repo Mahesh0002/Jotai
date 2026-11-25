@@ -1,45 +1,44 @@
-import time
 import json
-import redis
 import threading
-from config import settings
-from services.context_engine import get_aggregated_context
-from services.suggestion_service import create_suggestion
+import time
 
-# Initialize Redis
-r = redis.Redis.from_url(settings.REDIS_URL, decode_responses=True)
+import redis
 
-STREAM_KEY = 'jotai:events'
-GROUP_NAME = 'python_runner_group'
-CONSUMER_NAME = 'runner_worker_1'
+from runner.config import settings
+from runner.services.context_engine import get_aggregated_context
+from runner.services.suggestion_service import create_suggestion
 
-def setup_stream():
+STREAM_KEY = "jotai:events"
+GROUP_NAME = "python_runner_group"
+CONSUMER_NAME = "runner_worker_1"
+
+
+def _client():
+    return redis.Redis.from_url(settings.REDIS_URL, decode_responses=True)
+
+
+def setup_stream(client) -> None:
     try:
-        r.xgroup_create(STREAM_KEY, GROUP_NAME, id='0', mkstream=True)
+        client.xgroup_create(STREAM_KEY, GROUP_NAME, id="0", mkstream=True)
         print(f"[Redis Consumer] Created consumer group {GROUP_NAME}")
-    except redis.exceptions.ResponseError as e:
-        if "BUSYGROUP Consumer Group name already exists" not in str(e):
-            print(f"[Redis Consumer] Error creating group: {e}")
+    except redis.exceptions.ResponseError as exc:
+        if "BUSYGROUP" not in str(exc):
+            print(f"[Redis Consumer] Error creating group: {exc}")
 
-def handle_event(event_id, event_data):
+
+def handle_event(event_id: str, event_data: dict) -> None:
     try:
-        payload_str = event_data.get('payload')
+        payload_str = event_data.get("payload")
         if not payload_str:
             return
-            
         event = json.loads(payload_str)
-        event_type = event.get('eventType')
-        data = event.get('data', {})
-        
+        event_type = event.get("eventType")
+
         print(f"[Redis Consumer] Processing event: {event_type} ({event_id})")
-        
-        # Example Proactive Intelligence Logic
-        if event_type == 'TASK_COMPLETED':
-            # 1. Fetch updated context
+
+        if event_type == "TASK_COMPLETED":
             context = get_aggregated_context()
-            tasks_remaining = context.get('today', {}).get('tasks_remaining', 0)
-            
-            # 2. Decide if we want to create a suggestion
+            tasks_remaining = context.get("today", {}).get("tasks_remaining", 0)
             if tasks_remaining == 0:
                 create_suggestion(
                     type="all_tasks_completed",
@@ -47,34 +46,32 @@ def handle_event(event_id, event_data):
                     title="Amazing job today!",
                     message="You've completed all your tasks for today. Would you like me to draft tomorrow's schedule?",
                     targetModule="today",
-                    actions=["plan_tomorrow"]
+                    actions=["plan_tomorrow"],
                 )
-                
-    except Exception as e:
-        print(f"[Redis Consumer] Error handling event: {e}")
+    except Exception as exc:
+        print(f"[Redis Consumer] Error handling event: {exc}")
 
-def consumer_loop(stop_event):
-    setup_stream()
-    
+
+def consumer_loop(stop_event: threading.Event) -> None:
+    client = _client()
+    setup_stream(client)
     print("[Redis Consumer] Listening for events...")
     while not stop_event.is_set():
         try:
-            # Read from stream
-            # '>' means messages not delivered to other consumers in group
-            messages = r.xreadgroup(GROUP_NAME, CONSUMER_NAME, {STREAM_KEY: '>'}, count=5, block=2000)
-            
+            messages = client.xreadgroup(
+                GROUP_NAME, CONSUMER_NAME, {STREAM_KEY: ">"}, count=5, block=2000
+            )
             if messages:
-                for stream, msg_list in messages:
+                for _, msg_list in messages:
                     for msg_id, msg_data in msg_list:
                         handle_event(msg_id, msg_data)
-                        # Acknowledge successful processing
-                        r.xack(STREAM_KEY, GROUP_NAME, msg_id)
-                        
-        except Exception as e:
-            print(f"[Redis Consumer] Loop error: {e}")
-            time.sleep(2) # Backoff before retry
+                        client.xack(STREAM_KEY, GROUP_NAME, msg_id)
+        except Exception as exc:
+            print(f"[Redis Consumer] Loop error: {exc}")
+            time.sleep(2)
 
-def start_consumer():
+
+def start_consumer() -> threading.Event:
     stop_event = threading.Event()
     thread = threading.Thread(target=consumer_loop, args=(stop_event,), daemon=True)
     thread.start()

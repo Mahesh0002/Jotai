@@ -6,10 +6,8 @@ const {
   deleteBlock,
   completeBlock
 } = require('../controllers/focusBlockController');
-const serviceAuth = require('../middlewares/serviceAuth');
-
+// Local single-user UI routes; see docs/STATUS.md (no login flow yet).
 const router = express.Router();
-router.use(serviceAuth);
 
 router.route('/')
   .get(getBlocks)

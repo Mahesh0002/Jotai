@@ -401,7 +401,7 @@ export const analyticsApi = {
 // --- Proposals Interfaces (Jötai Runner) ---
 export interface Proposal {
   _id: string;
-  type: "schedule_proposal" | "habit_insight";
+  type: "schedule_proposal" | "habit_insight" | "subtask_suggestion";
   data: any;
   status: "pending" | "accepted" | "rejected";
   flags: string[];

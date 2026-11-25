@@ -4,7 +4,9 @@ const Task = require('../models/Task');
 // Get blocks for a specific date range
 exports.getBlocks = async (req, res) => {
   try {
-    const { start, end } = req.query;
+    const { start: startQuery, end: endQuery, startDate, endDate } = req.query;
+    const start = startQuery || startDate;
+    const end = endQuery || endDate;
     let query = {};
     
     if (start && end) {
