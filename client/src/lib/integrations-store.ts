@@ -5,6 +5,8 @@
  * Uses React state + localStorage — no external state lib needed.
  */
 
+import { BACKEND_API_URL } from "@/lib/config";
+
 export type SpotifyTokens = {
   accessToken: string;
   refreshToken: string;
@@ -79,7 +81,7 @@ export async function getValidSpotifyToken(): Promise<string | null> {
 
   // Try to refresh
   try {
-    const res = await fetch("http://localhost:5000/api/v1/integrations/spotify/refresh", {
+    const res = await fetch(`${BACKEND_API_URL}/integrations/spotify/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

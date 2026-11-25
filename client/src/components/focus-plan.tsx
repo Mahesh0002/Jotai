@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { BACKEND_API_URL, RUNNER_API_URL } from "@/lib/config";
 import { Link } from "@tanstack/react-router";
 import {
   Brain,
@@ -103,7 +104,7 @@ export function FocusPlan({ onStartFocus }: FocusPlanProps) {
   const handleAutoPlan = async () => {
     setIsAutoPlanning(true);
     try {
-      await fetch("http://localhost:8000/api/runner/trigger", {
+      await fetch(`${RUNNER_API_URL}/runner/trigger`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ intent: "plan" })

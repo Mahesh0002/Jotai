@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { BACKEND_API_URL, RUNNER_API_URL } from "@/lib/config";
 import {
   Activity,
   ArrowUpRight,
@@ -458,7 +459,7 @@ export function NewsWidget() {
   });
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/v1/news")
+    fetch(`${BACKEND_API_URL}/news`)
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.data.length > 0) {
@@ -509,7 +510,7 @@ export function MarketWidget() {
   ]);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/v1/stocks?symbol=BTC/USD")
+    fetch(`${BACKEND_API_URL}/stocks?symbol=BTC/USD`)
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.data) {
@@ -577,7 +578,7 @@ export function WeatherWidget() {
   });
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/v1/weather?city=Tokyo")
+    fetch(`${BACKEND_API_URL}/weather?city=Tokyo`)
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.data) {

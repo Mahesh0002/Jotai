@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { BACKEND_API_URL, RUNNER_API_URL } from "@/lib/config";
 import { X, Mic, MicOff, Send, Bot, Check, XCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -63,7 +64,7 @@ export function SmartAssistant() {
     if (accepted) {
       setLoading(true);
       try {
-        const response = await fetch("http://localhost:8000/api/runner/execute", {
+        const response = await fetch(`${RUNNER_API_URL}/runner/execute`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -107,7 +108,7 @@ export function SmartAssistant() {
     setMessages((prev) => [...prev, { id: Date.now().toString(), role: "user", text: userMsg }]);
 
     try {
-      const response = await fetch("http://localhost:8000/api/runner/trigger", {
+      const response = await fetch(`${RUNNER_API_URL}/runner/trigger`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

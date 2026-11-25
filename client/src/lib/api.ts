@@ -1,8 +1,9 @@
 import axios from "axios";
+import { BACKEND_API_URL } from "@/lib/config";
 
 // Base API instance
 export const api = axios.create({
-  baseURL: "http://localhost:5000/api/v1", // Ensure this matches backend port
+  baseURL: BACKEND_API_URL,
   headers: {
     "Content-Type": "application/json",
   },
@@ -162,7 +163,7 @@ export const todayApi = {
   },
   getInsights: async () => {
     const res = await api.get("/today/insights");
-    return res.data.data as AIInsight;
+    return res.data.data as AIInsight | null;
   },
 };
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { BACKEND_API_URL, RUNNER_API_URL } from "@/lib/config";
 import { Github, GitCommit, GitPullRequest, Book, ExternalLink, RefreshCw, Loader2, Check, X, Unlink, Key } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,7 +13,7 @@ import {
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
-const API = "http://localhost:5000/api/v1/integrations";
+const API = `${BACKEND_API_URL}/integrations`;
 
 type Repo = { id: number; name: string; full_name: string; language: string | null; stargazers_count: number; pushed_at: string; html_url: string; private: boolean };
 type Commit = { sha: string; commit: { message: string; author: { date: string } }; repository: { full_name: string; html_url: string }; html_url: string };

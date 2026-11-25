@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
+import { BACKEND_API_URL, RUNNER_API_URL } from "@/lib/config";
 import { Music, Play, Pause, SkipForward } from "lucide-react";
 import { getValidSpotifyToken, isSpotifyConnected } from "@/lib/integrations-store";
 import { Link } from "@tanstack/react-router";
 
-const API = "http://localhost:5000/api/v1/integrations";
+const API = `${BACKEND_API_URL}/integrations`;
 
 type MiniTrack = {
   isPlaying: boolean;

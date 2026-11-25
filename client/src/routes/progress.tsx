@@ -5,6 +5,7 @@ import { FocusChart } from "@/components/progress/FocusChart";
 import { TaskBarChart } from "@/components/progress/TaskBarChart";
 import { WeeklyXPEarned } from "@/components/progress/WeeklyXPEarned";
 import { FocusDonut } from "@/components/progress/FocusDonut";
+import { GoalsPanel } from "@/components/goals/GoalsPanel";
 import { useState } from "react";
 
 export const Route = createFileRoute("/progress")({
@@ -57,11 +58,7 @@ function ProgressRoute() {
           </div>
         )}
 
-        {activeTab === "Goals" && (
-          <div className="flex items-center justify-center h-full text-zinc-500">
-            Goals analytics coming soon...
-          </div>
-        )}
+        {activeTab === "Goals" && <GoalsPanel />}
       </div>
     </div>
   );

@@ -5,6 +5,20 @@ within each phase.
 
 ## Phase C
 
+### C4 — Insights + goals API wiring (done)
+- `backend/src/controllers/todayController.js`: `/today/insights` now derives a
+  focus-window insight from completed focus blocks in the last 30 days; returns
+  `data: null` below three sessions. No LLM call.
+- `backend/tests/todayInsights.test.js` (new): computation and insufficient-data cases.
+- `client/src/components/insights/LiveInsights.tsx` (new): consumes the endpoint on
+  `/insights`; the three hardcoded insight cards were removed from that route.
+- `client/src/components/goals/GoalsPanel.tsx` (new): list, create, complete/reopen,
+  and delete goals via `useGoals`; replaces the "coming soon" Progress tab.
+- `client/src/lib/config.ts` (new): `VITE_BACKEND_API_URL` / `VITE_RUNNER_API_URL`
+  with localhost defaults. All scattered `:5000` / `:8000` URLs now use it.
+- Verified: all 15 backend tests pass via Deno Node-compat runner (npm unavailable);
+  client syntax checked with Deno. External-signals sidebar remains sample data.
+
 ### C3 — Proposals inbox UI (done)
 - `client/src/routes/proposals.tsx` (new): `/proposals` page.
 - `client/src/components/proposals/ProposalInbox.tsx` (new): polls pending proposals,

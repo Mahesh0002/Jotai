@@ -114,15 +114,57 @@ exports.getCalendarEvents = async (req, res) => {
 };
 
 // GET /api/v1/today/insights
+// Deterministic aggregation of completed focus blocks (no LLM call).
 exports.getInsights = async (req, res) => {
     try {
+        const since = new Date();
+        since.setDate(since.getDate() - 30);
+
+        const blocks = await FocusBlock.find({
+            status: 'completed',
+            startTime: { $gte: since }
+        });
+
+        if (blocks.length < 3) {
+            return res.json({
+                success: true,
+                data: null,
+                message: 'Complete at least three focus sessions to unlock an insight.'
+            });
+        }
+
+        const minutesByHour = new Map();
+        for (const block of blocks) {
+            const date = new Date(block.startTime);
+            if (Number.isNaN(date.getTime())) continue;
+            const hour = date.getHours();
+            const minutes = Number(block.durationMinutes) || 0;
+            minutesByHour.set(hour, (minutesByHour.get(hour) || 0) + minutes);
+        }
+
+        if (minutesByHour.size === 0) {
+            return res.json({ success: true, data: null, message: 'No usable focus sessions yet.' });
+        }
+
+        const ranked = [...minutesByHour.entries()].sort((a, b) => b[1] - a[1]);
+        const [bestHour, bestMinutes] = ranked[0];
+        const totalMinutes = [...minutesByHour.values()].reduce((sum, value) => sum + value, 0);
+        const averageMinutes = totalMinutes / minutesByHour.size;
+        const lift = averageMinutes > 0
+            ? Math.round(((bestMinutes - averageMinutes) / averageMinutes) * 100)
+            : 0;
+        const start = `${String(bestHour).padStart(2, '0')}:00`;
+        const end = `${String((bestHour + 1) % 24).padStart(2, '0')}:00`;
+
         res.json({
             success: true,
             data: {
-                type: "focus_window",
-                headline: "You focus 34% better between 9:30 AM and 12:10 PM.",
-                description: "Your deep-work sessions during this window are consistently longer and have fewer interruptions.",
-                confidence: 0.87
+                type: 'focus_window',
+                headline: lift > 0
+                    ? `You focus ${lift}% longer around ${start}–${end}.`
+                    : 'Your focus time is fairly even across the day.',
+                description: `Based on ${blocks.length} completed focus sessions in the last 30 days. Your strongest window is ${start}–${end}, with ${Math.round(bestMinutes)} focused minutes.`,
+                confidence: Math.min(0.95, 0.5 + blocks.length / 100)
             }
         });
     } catch (error) {

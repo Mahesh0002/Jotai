@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { BACKEND_API_URL, RUNNER_API_URL } from "@/lib/config";
 import { Music, Play, Pause, SkipForward, SkipBack, Volume2, ExternalLink, RefreshCw, Loader2, Unlink, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,7 +16,7 @@ import {
 } from "@/lib/integrations-store";
 import { toast } from "sonner";
 
-const API = "http://localhost:5000/api/v1/integrations";
+const API = `${BACKEND_API_URL}/integrations`;
 // Spotify Client ID — set in .env as VITE_SPOTIFY_CLIENT_ID
 const CLIENT_ID = (import.meta.env as any).VITE_SPOTIFY_CLIENT_ID || "";
 // Spotify requires a loopback IP (not 'localhost') for the redirect URI

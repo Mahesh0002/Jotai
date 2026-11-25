@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { InsightsHeader } from "@/components/insights/InsightsHeader";
-import { AiObservationCard } from "@/components/insights/AiObservationCard";
-import { PersonalInsightCard } from "@/components/insights/PersonalInsightCard";
-import { AiAlertCard } from "@/components/insights/AiAlertCard";
+import { LiveInsights } from "@/components/insights/LiveInsights";
 import { ExternalSignalsSidebar } from "@/components/insights/ExternalSignalsSidebar";
 
 export const Route = createFileRoute("/insights")({
@@ -18,9 +16,7 @@ function InsightsRoute() {
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
           <div className="flex flex-col gap-6 max-w-4xl mx-auto">
-            <AiObservationCard />
-            <PersonalInsightCard />
-            <AiAlertCard />
+            <LiveInsights />
           </div>
         </div>
       </div>

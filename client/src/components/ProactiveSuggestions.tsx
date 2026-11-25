@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { BACKEND_API_URL, RUNNER_API_URL } from "@/lib/config";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,7 @@ export function ProactiveSuggestions() {
 
   const fetchSuggestions = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/v1/assistant/suggestions");
+      const res = await fetch(`${BACKEND_API_URL}/assistant/suggestions`);
       const data = await res.json();
       if (data.success) {
         setSuggestions(data.data);
@@ -42,7 +43,7 @@ export function ProactiveSuggestions() {
       // Optimistically remove from UI
       setSuggestions((prev) => prev.filter((s) => s._id !== id));
       
-      await fetch(`http://localhost:5000/api/v1/assistant/suggestions/${id}/${action}`, {
+      await fetch(`${BACKEND_API_URL}/assistant/suggestions/${id}/${action}`, {
         method: "POST"
       });
       
