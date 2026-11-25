@@ -49,9 +49,13 @@ def startup_event():
 
 @app.on_event("shutdown")
 def shutdown_event():
+    global consumer_stop_event
     if consumer_stop_event:
         print("Stopping Redis Consumer...")
-        consumer_stop_event.set()
+        from runner.events.consumer import stop_consumer
+
+        stop_consumer(consumer_stop_event)
+        consumer_stop_event = None
 
 
 @app.get("/health")

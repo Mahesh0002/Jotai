@@ -15,6 +15,8 @@ class Config(BaseModel):
     RUNNER_USER_ID: str = os.getenv("RUNNER_USER_ID", "")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
     CHAT_HISTORY_TURNS: int = int(os.getenv("CHAT_HISTORY_TURNS", "6"))
+    CHAT_MAX_SESSIONS: int = int(os.getenv("CHAT_MAX_SESSIONS", "1000"))
+    CHAT_SESSION_TTL_SECONDS: int = int(os.getenv("CHAT_SESSION_TTL_SECONDS", "3600"))
     PENDING_ACTION_TTL_SECONDS: int = int(os.getenv("PENDING_ACTION_TTL_SECONDS", "600"))
 
 

@@ -4,6 +4,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const config = require('./config');
 const errorHandler = require('./middlewares/errorHandler');
+const { closeRedis } = require('./services/eventPublisher');
+const { startConversationCleanup, stopConversationCleanup } = require('./jobs/cleanupConversations');
 
 // Create an instance of Express
 const app = express();
@@ -15,7 +17,10 @@ app.use(cors({ origin: true, credentials: true }));
 
 // Connect to MongoDB
 mongoose.connect(config.mongoUri)
-  .then(() => console.log('Connected to MongoDB'))
+  .then(() => {
+    console.log('Connected to MongoDB');
+    startConversationCleanup();
+  })
   .catch((err) => console.error('Error connecting to MongoDB:', err));
 
 // Route Imports
@@ -72,6 +77,33 @@ app.get('/', (req, res) => {
 app.use(errorHandler);
 
 // Start server
-app.listen(config.port, () => {
+const server = app.listen(config.port, () => {
   console.log(`Server running in ${config.env} mode on port ${config.port}`);
 });
+
+let shuttingDown = false;
+const gracefulShutdown = async (signal) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`${signal} received. Closing connections...`);
+  stopConversationCleanup();
+
+  const forceExit = setTimeout(() => process.exit(1), 10000);
+  if (typeof forceExit.unref === 'function') forceExit.unref();
+
+  try {
+    await new Promise((resolve) => server.close(resolve));
+    await mongoose.disconnect();
+    await closeRedis();
+    console.log('Shutdown complete');
+  } catch (error) {
+    console.error('Error during shutdown:', error);
+    process.exitCode = 1;
+  } finally {
+    clearTimeout(forceExit);
+    process.exit(process.exitCode || 0);
+  }
+};
+
+process.on('SIGTERM', () => { void gracefulShutdown('SIGTERM'); });
+process.on('SIGINT', () => { void gracefulShutdown('SIGINT'); });

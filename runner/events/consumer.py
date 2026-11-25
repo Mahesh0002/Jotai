@@ -12,9 +12,27 @@ STREAM_KEY = "jotai:events"
 GROUP_NAME = "python_runner_group"
 CONSUMER_NAME = "runner_worker_1"
 
+_client_instance = None
+_client_lock = threading.Lock()
+_consumer_thread = None
+
 
 def _client():
-    return redis.Redis.from_url(settings.REDIS_URL, decode_responses=True)
+    global _client_instance
+    with _client_lock:
+        if _client_instance is None:
+            _client_instance = redis.Redis.from_url(settings.REDIS_URL, decode_responses=True)
+        return _client_instance
+
+
+def close_client() -> None:
+    """Close the shared Redis client; safe to call more than once."""
+    global _client_instance
+    with _client_lock:
+        client = _client_instance
+        _client_instance = None
+    if client is not None:
+        client.close()
 
 
 def setup_stream(client) -> None:
@@ -54,25 +72,41 @@ def handle_event(event_id: str, event_data: dict) -> None:
 
 def consumer_loop(stop_event: threading.Event) -> None:
     client = _client()
-    setup_stream(client)
-    print("[Redis Consumer] Listening for events...")
-    while not stop_event.is_set():
-        try:
-            messages = client.xreadgroup(
-                GROUP_NAME, CONSUMER_NAME, {STREAM_KEY: ">"}, count=5, block=2000
-            )
-            if messages:
-                for _, msg_list in messages:
-                    for msg_id, msg_data in msg_list:
-                        handle_event(msg_id, msg_data)
-                        client.xack(STREAM_KEY, GROUP_NAME, msg_id)
-        except Exception as exc:
-            print(f"[Redis Consumer] Loop error: {exc}")
-            time.sleep(2)
+    try:
+        setup_stream(client)
+        print("[Redis Consumer] Listening for events...")
+        while not stop_event.is_set():
+            try:
+                messages = client.xreadgroup(
+                    GROUP_NAME, CONSUMER_NAME, {STREAM_KEY: ">"}, count=5, block=2000
+                )
+                if messages:
+                    for _, msg_list in messages:
+                        for msg_id, msg_data in msg_list:
+                            handle_event(msg_id, msg_data)
+                            client.xack(STREAM_KEY, GROUP_NAME, msg_id)
+            except Exception as exc:
+                print(f"[Redis Consumer] Loop error: {exc}")
+                time.sleep(2)
+    finally:
+        close_client()
 
 
 def start_consumer() -> threading.Event:
+    global _consumer_thread
     stop_event = threading.Event()
     thread = threading.Thread(target=consumer_loop, args=(stop_event,), daemon=True)
     thread.start()
+    _consumer_thread = thread
     return stop_event
+
+
+def stop_consumer(stop_event: threading.Event) -> None:
+    """Signal the loop and release its Redis client and thread."""
+    global _consumer_thread
+    stop_event.set()
+    close_client()
+    thread = _consumer_thread
+    _consumer_thread = None
+    if thread is not None and thread is not threading.current_thread():
+        thread.join(timeout=5)

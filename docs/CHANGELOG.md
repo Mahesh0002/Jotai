@@ -5,6 +5,23 @@ within each phase.
 
 ## Phase C
 
+### C7 — Resource cleanup / memory leak fixes (done)
+- `backend/src/services/eventPublisher.js`: added idempotent `closeRedis()`
+  while preserving the existing default `EventPublisher` export.
+- `backend/src/server.js`: `SIGTERM`/`SIGINT` handler closes the HTTP listener,
+  Mongoose connection, Redis client, and cleanup timer before exiting.
+- `backend/src/jobs/cleanupConversations.js` (new): daily (and startup) sweep
+  deletes messages and conversations for inactive chats older than 30 days.
+  `backend/tests/cleanupConversations.test.js` covers both branches.
+- `runner/events/consumer.py`: one shared Redis client closed in the consumer
+  loop's `finally`; `stop_consumer()` signals, closes, and joins the thread.
+  `runner/app.py` calls it on FastAPI shutdown.
+- `runner/services/conversation_store.py`: LRU eviction (`CHAT_MAX_SESSIONS`,
+  default 1000) plus TTL pruning (`CHAT_SESSION_TTL_SECONDS`, default 3600)
+  for history and pending actions; pending writes also touch the LRU.
+- Verified: 34 backend tests pass via Deno; Python files compile and an
+  stdlib-only harness checks LRU eviction. pytest/Redis/browser still unavailable.
+
 ### C6 — Cookie auth, per-user scoping, and ICS calendar (done)
 - `backend/src/middlewares/{requestContext,requireUser,scopingPlugin}.js`: async
   request context identifies UI cookie/JWT or Runner service token; a global API
@@ -19,7 +36,7 @@ within each phase.
 - `runner/config.py` / `runner/api_client.py`: optional `RUNNER_USER_ID` sends
   `x-jotai-user-id` so Runner service actions can be scoped to one user.
 - New tests: `auth.test.js` (3), `accessGuard.test.js` (5), `ical.test.js` (2),
-  `calendarFeed.test.js` (2). Full backend suite: 32 passed via Deno
+  `calendarFeed.test.js` (2). Full backend suite: 34 passed via Deno
   `--no-check` Node compatibility; client files parse-checked with Deno.
 - Not verified in a browser: no node/npm in this environment. Python tests were
   not re-run here (pytest unavailable); the prior 52-pass snapshot stands.

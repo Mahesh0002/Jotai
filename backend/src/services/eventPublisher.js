@@ -62,4 +62,24 @@ class EventPublisher {
   }
 }
 
+/** Close the Redis connection on shutdown; safe to call more than once. */
+const closeRedis = async () => {
+  if (!redisClient) return;
+  try {
+    if (redisClient.status === 'ready') {
+      await redisClient.quit();
+    } else {
+      redisClient.disconnect();
+    }
+  } catch (err) {
+    console.error('[EventPublisher] Error closing Redis:', err.message);
+    redisClient.disconnect();
+  }
+  redisClient = null;
+  console.log('[EventPublisher] Redis connection closed');
+};
+
+// Keep the default export for existing `require('../services/eventPublisher')` callers.
 module.exports = EventPublisher;
+module.exports.EventPublisher = EventPublisher;
+module.exports.closeRedis = closeRedis;

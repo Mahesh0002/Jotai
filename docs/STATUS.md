@@ -30,15 +30,16 @@ The Runner is `runner/` (Python/FastAPI). The web app is `client/` + `backend/`.
 | Settings persistence + integration status | Done (static review) | `client/src/contexts/SettingsContext.tsx`, `backend/src/routes/preferenceRoutes.js`, `client/src/lib/integrations-store.ts` | `backend/tests/preferences.test.js` (2 cases); no UI runner |
 | Cookie auth + per-user scoping | Done (static review) | `backend/src/middlewares/{requestContext,requireUser,scopingPlugin}.js`, `backend/src/routes/authRoutes.js`, `client/src/routes/login.tsx` | `backend/tests/auth.test.js`, `accessGuard.test.js`; no UI runner |
 | Real calendar bridge (ICS) | Done | `backend/src/utils/ical.js`, `backend/src/controllers/todayController.js`, `client/src/components/settings/CalendarFeedCard.tsx` | `backend/tests/ical.test.js`, `calendarFeed.test.js` |
-| Redis event consumer | Present, untested | `runner/events/consumer.py`, `backend/src/services/eventPublisher.js` | not run (no Redis in this environment) |
-| Bounded chat history (6 turns) | Done | `runner/services/conversation_store.py` | `runner/test_conversation.py` |
+| Redis event consumer | Present, closes on shutdown | `runner/events/consumer.py`, `backend/src/services/eventPublisher.js` | not run (no Redis in this environment) |
+| Bounded chat history (6 turns, LRU sessions + TTL) | Done | `runner/services/conversation_store.py`, `runner/config.py` | stdlib LRU harness; pytest unavailable here |
+| Graceful shutdown + chat cleanup | Done | `backend/src/server.js`, `backend/src/jobs/cleanupConversations.js`, `runner/app.py` | `backend/tests/cleanupConversations.test.js` (2 cases) |
 | Pending confirmation survives a turn | Done | `runner/services/conversation_store.py`, `orchestrator.py` | `runner/test_conversation.py`, `runner/test_orchestrator_flow.py` |
 | Calendar-aware planning | Done with ICS subscription | `runner/agents/planning.py`, `backend/src/controllers/todayController.js` | `runner/test_planning_calendar.py`, `backend/tests/calendarFeed.test.js` |
 | `estimate_duration` | Done | `runner/services/stats.py`, `runner/agents/tools.py` | `runner/test_stats.py` |
 | `suggest_subtasks` proposal | Done | `runner/agents/tools.py` | `runner/test_agents.py` |
 | Decision log on accept/reject | Done | `backend/src/models/DecisionLog.js`, `proposalController.js` | `backend/tests/proposalDecisions.test.js` |
 | Deterministic preference profile | Done | `runner/services/stats.py` | `runner/test_stats.py`, `test_planning_calendar.py`, `test_habit_insight.py` |
-| Tests | 52 Python (prior run) + 32 Node | `runner/test_*.py`, `backend/tests/*.test.js` | see commands below; pytest unavailable here |
+| Tests | 52 Python (prior run) + 34 Node | `runner/test_*.py`, `backend/tests/*.test.js` | see commands below; pytest unavailable here |
 
 ## Invariant compliance
 
@@ -69,6 +70,9 @@ The Runner is `runner/` (Python/FastAPI). The web app is `client/` + `backend/`.
     service calls stay global unless `RUNNER_USER_ID` sends `x-jotai-user-id`.
 12. **Privacy — tests use synthetic data.** Live Gemini is never called in
     tests; stub is the default.
+13. **Resource cleanup — PASS.** Node closes HTTP, Mongoose, and Redis on
+    SIGTERM/SIGINT; the Runner stops/joins its consumer and closes Redis; chat
+    state is LRU/TTL bounded and old conversations are deleted daily.
 
 ## Verification commands (real output)
 
@@ -78,11 +82,11 @@ $ LLM_PROVIDER=stub python -m pytest runner/ -q
 
 # npm available in a full toolchain:
 $ cd backend && npm test
-# 32 tests
+# 34 tests
 
 # Verified in this environment with Deno (no Node/npm installed):
 $ cd backend && deno test --no-check --unstable-detect-cjs --node-modules-dir=manual --allow-all tests/*.test.js
-# 32 passed | 0 failed
+# 34 passed | 0 failed
 ```
 
 ```text
@@ -104,8 +108,8 @@ runner.app import ok
   settings, calendar, or proposals screens.
 - **Runner service calls are global unless `RUNNER_USER_ID` is set**; the optional
   impersonation header scopes them to one user.
-- **Redis path untested** here (no Redis server). `redis` is now in
-  `requirements.txt`.
+- **Redis path untested** here (no Redis server); lifecycle cleanup is wired
+  but not exercised against a live server. `redis` is in `requirements.txt`.
 - **No live Gemini test** (by design; free-tier budget). The Gemini adapter is
   covered by inspection and the stub/unit tests.
 - **No end-to-end DB test** for action handlers; Node tests mock Mongoose models.
