@@ -1,6 +1,6 @@
 # Jötai — Implementation Status
 
-Last updated: 2026-11-13. Scope: Phase A (A1–A3), Phase B (B1–B4), Phase C
+Last updated: 2026-11-25. Scope: Phase A (A1–A3), Phase B (B1–B4), Phase C
 (C1–C2). Phases D–F remain locked.
 
 The Runner is `runner/` (Python/FastAPI). The web app is `client/` + `backend/`.
@@ -22,6 +22,7 @@ The Runner is `runner/` (Python/FastAPI). The web app is `client/` + `backend/`.
 | Proposals flow | Done | `backend/src/routes/proposalRoutes.js`, `controllers/proposalController.js`, `models/Proposal.js` | `backend/tests/proposalDecisions.test.js` |
 | `serviceAuth` (JWT OR service token) | Done | `backend/src/middlewares/serviceAuth.js` | `backend/tests/serviceAuth.test.js` (8 tests) |
 | Chat UI wired to Runner | Done | `client/src/components/SmartAssistant.tsx` | manual/code inspection; no UI test runner |
+| Proposals inbox UI | Done (static review) | `client/src/routes/proposals.tsx`, `client/src/components/proposals/ProposalInbox.tsx` | code inspection; no node/npm here to build or test |
 | Redis event consumer | Present, untested | `runner/events/consumer.py`, `backend/src/services/eventPublisher.js` | not run (no Redis in this environment) |
 | Bounded chat history (6 turns) | Done | `runner/services/conversation_store.py` | `runner/test_conversation.py` |
 | Pending confirmation survives a turn | Done | `runner/services/conversation_store.py`, `orchestrator.py` | `runner/test_conversation.py`, `runner/test_orchestrator_flow.py` |
@@ -89,8 +90,8 @@ runner.app import ok
 
 - **Real calendar**: `/api/v1/today/calendar` returns synthetic events; planning
   checks against those. A real integration is not implemented.
-- **No proposals UI**: schedule/insight/subtask proposals can be created and
-  accepted/rejected via API; there is no inbox screen in the client yet.
+- **Proposals inbox not browser-verified**: added after the last recorded test run; no
+  node/npm in this environment to build or exercise it.
 - **No login flow** for the UI; task/habit/focus routes are local and open.
 - **Redis path untested** here (no Redis server). `redis` is now in
   `requirements.txt`.

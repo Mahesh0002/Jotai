@@ -4,6 +4,7 @@ import {
   CheckSquare,
   TrendingUp,
   Lightbulb,
+  Inbox,
   Calendar,
   ListTodo,
   Activity,
@@ -15,7 +16,7 @@ import {
 } from "lucide-react";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useQuery } from "@tanstack/react-query";
-import { todayApi } from "@/lib/api";
+import { proposalsApi, todayApi } from "@/lib/api";
 import { NowPlayingWidget } from "@/components/NowPlayingWidget";
 
 function getInitials(name: string): string {
@@ -31,6 +32,7 @@ const mainNav = [
   { name: "Today", path: "/", icon: CheckSquare },
   { name: "Progress", path: "/progress", icon: TrendingUp },
   { name: "Insights", path: "/insights", icon: Lightbulb },
+  { name: "Proposals", path: "/proposals", icon: Inbox },
   { name: "Calendar", path: "/calendar", icon: Calendar },
   { name: "Tasks", path: "/tasks", icon: ListTodo },
   { name: "Habits", path: "/habits", icon: Activity },
@@ -53,6 +55,12 @@ export function Sidebar({ onOpenIntegrations }: { onOpenIntegrations: () => void
     queryKey: ["today-summary"],
     queryFn: todayApi.getSummary,
     staleTime: 60_000,
+  });
+  const { data: pendingCount } = useQuery({
+    queryKey: ["proposals"],
+    queryFn: () => proposalsApi.getAll(),
+    select: (items) => items.filter((item) => item.status === "pending").length,
+    staleTime: 30_000,
   });
 
   const initials = getInitials(settings.displayName || "JR");
@@ -89,6 +97,11 @@ export function Sidebar({ onOpenIntegrations }: { onOpenIntegrations: () => void
               className={`h-4 w-4 ${location.pathname === item.path ? "text-purple-400" : "text-zinc-500"}`}
             />
             {item.name}
+            {item.path === "/proposals" && pendingCount ? (
+              <span className="ml-auto rounded-full bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-purple-300">
+                {pendingCount}
+              </span>
+            ) : null}
           </Link>
         ))}
       </nav>

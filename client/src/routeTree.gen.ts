@@ -17,6 +17,7 @@ import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as ProgressRouteImport } from './routes/progress'
+import { Route as ProposalsRouteImport } from './routes/proposals'
 import { Route as RunnerRouteImport } from './routes/runner'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TasksRouteImport } from './routes/tasks'
@@ -61,6 +62,11 @@ const ProgressRoute = ProgressRouteImport.update({
   path: '/progress',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProposalsRoute = ProposalsRouteImport.update({
+  id: '/proposals',
+  path: '/proposals',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RunnerRoute = RunnerRouteImport.update({
   id: '/runner',
   path: '/runner',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/integrations': typeof IntegrationsRoute
   '/notes': typeof NotesRoute
   '/progress': typeof ProgressRoute
+  '/proposals': typeof ProposalsRoute
   '/runner': typeof RunnerRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/integrations': typeof IntegrationsRoute
   '/notes': typeof NotesRoute
   '/progress': typeof ProgressRoute
+  '/proposals': typeof ProposalsRoute
   '/runner': typeof RunnerRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/integrations': typeof IntegrationsRoute
   '/notes': typeof NotesRoute
   '/progress': typeof ProgressRoute
+  '/proposals': typeof ProposalsRoute
   '/runner': typeof RunnerRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/notes'
     | '/progress'
+    | '/proposals'
     | '/runner'
     | '/settings'
     | '/tasks'
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/notes'
     | '/progress'
+    | '/proposals'
     | '/runner'
     | '/settings'
     | '/tasks'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/notes'
     | '/progress'
+    | '/proposals'
     | '/runner'
     | '/settings'
     | '/tasks'
@@ -168,6 +180,7 @@ export interface RootRouteChildren {
   IntegrationsRoute: typeof IntegrationsRoute
   NotesRoute: typeof NotesRoute
   ProgressRoute: typeof ProgressRoute
+  ProposalsRoute: typeof ProposalsRoute
   RunnerRoute: typeof RunnerRoute
   SettingsRoute: typeof SettingsRoute
   TasksRoute: typeof TasksRoute
@@ -231,6 +244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProgressRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/proposals': {
+      id: '/proposals'
+      path: '/proposals'
+      fullPath: '/proposals'
+      preLoaderRoute: typeof ProposalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/runner': {
       id: '/runner'
       path: '/runner'
@@ -264,6 +284,7 @@ const rootRouteChildren: RootRouteChildren = {
   IntegrationsRoute: IntegrationsRoute,
   NotesRoute: NotesRoute,
   ProgressRoute: ProgressRoute,
+  ProposalsRoute: ProposalsRoute,
   RunnerRoute: RunnerRoute,
   SettingsRoute: SettingsRoute,
   TasksRoute: TasksRoute,

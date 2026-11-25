@@ -399,13 +399,38 @@ export const analyticsApi = {
 };
 
 // --- Proposals Interfaces (Jötai Runner) ---
+export interface ScheduleBlock {
+  title?: string;
+  startTime?: string;
+  endTime?: string;
+  durationMinutes?: number;
+  taskId?: string;
+}
+
+export interface ProposalData {
+  blocks?: ScheduleBlock[];
+  flags?: string[];
+  profile?: string;
+  calendarChecked?: boolean;
+  title?: string;
+  description?: string;
+  action?: string;
+  stats?: Record<string, number>;
+  narrated?: boolean;
+  taskId?: string;
+  taskTitle?: string;
+  subtasks?: string[];
+  raw?: string;
+}
+
 export interface Proposal {
   _id: string;
   type: "schedule_proposal" | "habit_insight" | "subtask_suggestion";
-  data: any;
+  data: ProposalData;
   status: "pending" | "accepted" | "rejected";
   flags: string[];
   createdAt: string;
+  updatedAt?: string;
 }
 
 // Proposals API

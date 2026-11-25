@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import {
   Brain,
   Coffee,
@@ -278,6 +279,12 @@ export function FocusPlan({ onStartFocus }: FocusPlanProps) {
           <div className="bg-primary/10 border-b border-primary/20 p-4 shrink-0 flex flex-col gap-3">
             <h3 className="text-sm font-bold text-primary flex items-center gap-2">
               <Brain className="w-4 h-4" /> Suggestions from Jötai Runner
+              <Link
+                to="/proposals"
+                className="ml-auto text-xs font-normal text-primary/80 hover:text-primary"
+              >
+                View inbox →
+              </Link>
             </h3>
             {proposals.map(p => (
               <div key={p._id} className="bg-surface border border-primary/20 rounded-lg p-3 text-sm flex justify-between items-center">

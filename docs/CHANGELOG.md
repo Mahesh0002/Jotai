@@ -5,6 +5,17 @@ within each phase.
 
 ## Phase C
 
+### C3 — Proposals inbox UI (done)
+- `client/src/routes/proposals.tsx` (new): `/proposals` page.
+- `client/src/components/proposals/ProposalInbox.tsx` (new): polls pending proposals,
+  renders schedule/habit/subtask payloads, accept/reject with toasts and query
+  invalidation, plus a decision-history sidebar built from decided proposals.
+- `client/src/lib/api.ts`: typed proposal payloads and `updatedAt`.
+- `client/src/components/sidebar.tsx`: nav entry with pending count;
+  `client/src/components/focus-plan.tsx`: "View inbox" link.
+- `client/src/routeTree.gen.ts`: `/proposals` entry added (mirrors generator output).
+- Verified: static review only — no node/npm in this environment, so no build or UI test.
+
 ### C1 — Decision log (done)
 - `backend/src/models/DecisionLog.js` (new): proposal id, type, decision,
   attributes, timestamp.
