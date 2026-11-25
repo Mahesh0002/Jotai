@@ -12,6 +12,10 @@ const preferenceSchema = new mongoose.Schema({
         type: String,
         default: 'dark'
     },
+    settings: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
+    },
     updatedAt: {
         type: Date,
         default: Date.now

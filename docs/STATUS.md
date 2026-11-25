@@ -26,6 +26,8 @@ The Runner is `runner/` (Python/FastAPI). The web app is `client/` + `backend/`.
 | Deterministic focus insight | Done | `backend/src/controllers/todayController.js`, `client/src/components/insights/LiveInsights.tsx` | `backend/tests/todayInsights.test.js` (2 cases) |
 | Goals list + create/complete/delete | Done (static review) | `client/src/components/goals/GoalsPanel.tsx`, `client/src/hooks/useGoals.ts` | code inspection; no UI runner |
 | Centralized service URLs | Done | `client/src/lib/config.ts` | grep: localhost only in config defaults |
+| External signals bridge | Done | `backend/src/controllers/{news,stock,weather}Controller.js`, `client/src/components/insights/ExternalSignalsSidebar.tsx` | `backend/tests/externalSignals.test.js` (3 cases) |
+| Settings persistence + integration status | Done (static review) | `client/src/contexts/SettingsContext.tsx`, `backend/src/routes/preferenceRoutes.js`, `client/src/lib/integrations-store.ts` | `backend/tests/preferences.test.js` (2 cases); no UI runner |
 | Redis event consumer | Present, untested | `runner/events/consumer.py`, `backend/src/services/eventPublisher.js` | not run (no Redis in this environment) |
 | Bounded chat history (6 turns) | Done | `runner/services/conversation_store.py` | `runner/test_conversation.py` |
 | Pending confirmation survives a turn | Done | `runner/services/conversation_store.py`, `orchestrator.py` | `runner/test_conversation.py`, `runner/test_orchestrator_flow.py` |
@@ -73,13 +75,13 @@ $ LLM_PROVIDER=stub python -m pytest runner/ -q
 52 passed in 0.31s
 
 $ cd backend && npm test
-# tests 15
-# pass 15
+# tests 20
+# pass 20
 # fail 0
 
 # Verified in this environment with Deno (no Node/npm installed):
 $ cd backend && deno test --unstable-detect-cjs --node-modules-dir=manual --allow-all tests/*.test.js
-# 15 passed
+# 20 passed
 ```
 
 ```text
@@ -109,7 +111,7 @@ runner.app import ok
   notes semantic search.
 - Legacy `backend/src/services/aiService.js` still exists as an unused direct
   Gemini proxy under `/api/v1/ai/chat`; the Runner does not import it.
-- Insights external-signals sidebar (news/markets/weather) still uses sample data;
-  only the focus-window insight is computed from real focus sessions.
+- External signals require provider API keys on the backend; the UI shows an
+  explicit unavailable state when a key is missing.
 - Goals panel is a CRUD list, not the richer goals analytics originally mocked in
   the Progress tab.

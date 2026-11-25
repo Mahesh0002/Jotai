@@ -5,6 +5,19 @@ within each phase.
 
 ## Phase C
 
+### C5 — Remaining API pipelines and bridges (done)
+- News/stock/weather controllers now normalize upstream payloads to
+  `{ success, data }`; the Today widgets and Insights sidebar consume the same shape.
+- `backend/tests/externalSignals.test.js` (new): 3 normalization cases.
+- `client/src/components/insights/ExternalSignalsSidebar.tsx`: live news, BTC/USD
+  quote, and current weather via React Query; removed hardcoded sample data.
+- `Preference.settings` stores the full settings object; `SettingsContext` loads it
+  on mount and debounces PUTs on change. Spotify/GitHub connect/disconnect updates
+  `Preference.integrations`, and the sidebar reads those flags.
+- `backend/tests/preferences.test.js` (new): settings persistence cases.
+- Verified: all 20 backend tests pass via Deno Node-compat runner; client syntax
+  checked with Deno. No browser build available here.
+
 ### C4 — Insights + goals API wiring (done)
 - `backend/src/controllers/todayController.js`: `/today/insights` now derives a
   focus-window insight from completed focus blocks in the last 30 days; returns

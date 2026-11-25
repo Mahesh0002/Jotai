@@ -6,6 +6,7 @@
  */
 
 import { BACKEND_API_URL } from "@/lib/config";
+import { preferencesApi } from "@/lib/api";
 
 export type SpotifyTokens = {
   accessToken: string;
@@ -56,12 +57,24 @@ export function setSpotifyTokens(tokens: SpotifyTokens) {
   const state = load();
   state.spotify = tokens;
   save(state);
+  syncIntegrationFlag("spotify", true);
 }
 
 export function clearSpotifyTokens() {
   const state = load();
   state.spotify = null;
   save(state);
+  syncIntegrationFlag("spotify", false);
+}
+
+function syncIntegrationFlag(key: "spotify" | "github", connected: boolean) {
+  const integrations = key === "spotify" ? { spotify: connected } : { github: connected };
+  preferencesApi.update({ integrations }).catch(() => {
+    // Preference bridge is best-effort; local connection state still works.
+  });
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("jotai-invalidate", { detail: ["preferences"] }));
+  }
 }
 
 export function isSpotifyConnected(): boolean {
@@ -117,12 +130,14 @@ export function setGitHubConnection(conn: GitHubConnection) {
   const state = load();
   state.github = conn;
   save(state);
+  syncIntegrationFlag("github", true);
 }
 
 export function clearGitHubConnection() {
   const state = load();
   state.github = null;
   save(state);
+  syncIntegrationFlag("github", false);
 }
 
 export function isGitHubConnected(): boolean {

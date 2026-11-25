@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import { preferencesApi } from "@/lib/api";
 
 type SettingsState = {
   // Profile
@@ -87,8 +88,43 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<SettingsState>(initialSettings);
   const [activeCategory, setActiveCategory] = useState("Profile");
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dirty = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    preferencesApi
+      .get()
+      .then((preference) => {
+        if (preference.settings && typeof preference.settings === "object") {
+          setSettings({ ...initialSettings, ...(preference.settings as Partial<SettingsState>) });
+        }
+      })
+      .catch(() => {
+        // Backend unavailable — keep in-memory defaults.
+      });
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!dirty.current) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      preferencesApi
+        .update({ settings: settings as unknown as Record<string, unknown> })
+        .catch(() => {
+          // Backend unavailable — settings remain in memory only.
+        });
+    }, 400);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [settings]);
 
   const updateSetting = <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => {
+    dirty.current = true;
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 

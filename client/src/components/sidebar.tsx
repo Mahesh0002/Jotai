@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useQuery } from "@tanstack/react-query";
-import { proposalsApi, todayApi } from "@/lib/api";
+import { preferencesApi, proposalsApi, todayApi } from "@/lib/api";
+import { isGitHubConnected, isSpotifyConnected } from "@/lib/integrations-store";
 import { NowPlayingWidget } from "@/components/NowPlayingWidget";
 
 function getInitials(name: string): string {
@@ -41,12 +42,12 @@ const mainNav = [
 ];
 
 const integrations = [
-  { name: "Google Calendar", connected: true, initial: "G", color: "text-blue-400" },
-  { name: "Notion", connected: true, initial: "N", color: "text-zinc-200" },
-  { name: "Spotify", connected: true, initial: "S", color: "text-emerald-400" },
-  { name: "GitHub", connected: false, initial: "G", color: "text-zinc-400" },
-  { name: "Trello", connected: false, initial: "T", color: "text-blue-500" },
-];
+  { name: "Google Calendar", key: "google", initial: "G", color: "text-blue-400" },
+  { name: "Notion", key: "notion", initial: "N", color: "text-zinc-200" },
+  { name: "Spotify", key: "spotify", initial: "S", color: "text-emerald-400" },
+  { name: "GitHub", key: "github", initial: "G", color: "text-zinc-400" },
+  { name: "Trello", key: "trello", initial: "T", color: "text-blue-500" },
+] as const;
 
 export function Sidebar({ onOpenIntegrations }: { onOpenIntegrations: () => void }) {
   const location = useLocation();
@@ -61,6 +62,20 @@ export function Sidebar({ onOpenIntegrations }: { onOpenIntegrations: () => void
     queryFn: () => proposalsApi.getAll(),
     select: (items) => items.filter((item) => item.status === "pending").length,
     staleTime: 30_000,
+  });
+  const { data: preference } = useQuery({
+    queryKey: ["preferences"],
+    queryFn: () => preferencesApi.get(),
+    staleTime: 60_000,
+  });
+
+  const integrationStatuses = integrations.map((integration) => {
+    const stored = Boolean(preference?.integrations?.[integration.key]);
+    const local =
+      typeof window !== "undefined" &&
+      ((integration.key === "spotify" && isSpotifyConnected()) ||
+        (integration.key === "github" && isGitHubConnected()));
+    return { ...integration, connected: stored || local };
   });
 
   const initials = getInitials(settings.displayName || "JR");
@@ -112,7 +127,7 @@ export function Sidebar({ onOpenIntegrations }: { onOpenIntegrations: () => void
           Integrations
         </h3>
         <div className="flex flex-col gap-1">
-          {integrations.map((integration) => (
+          {integrationStatuses.map((integration) => (
             <div
               key={integration.name}
               className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm text-zinc-300"

@@ -151,6 +151,50 @@ export interface AIInsight {
   confidence: number;
 }
 
+// --- External signals ---
+export interface NewsArticle {
+  title: string;
+  description?: string;
+  source?: string;
+  url?: string;
+  publishedAt?: string;
+}
+
+export interface StockQuote {
+  symbol: string;
+  price: number;
+  change: number;
+  percent_change: number;
+  asOf?: string;
+}
+
+export interface WeatherSignal {
+  location: { name: string; region?: string; country?: string };
+  current: {
+    temp_c: number;
+    feelslike_c: number;
+    humidity: number;
+    wind_kph: number;
+    condition?: { text?: string; icon?: string };
+    last_updated?: string;
+  };
+}
+
+export const signalsApi = {
+  getNews: async () => {
+    const res = await api.get("/news");
+    return res.data.data as NewsArticle[];
+  },
+  getStock: async (symbol: string) => {
+    const res = await api.get("/stocks", { params: { symbol } });
+    return res.data.data as StockQuote;
+  },
+  getWeather: async (city: string) => {
+    const res = await api.get("/weather", { params: { city } });
+    return res.data.data as WeatherSignal;
+  },
+};
+
 // Today API
 export const todayApi = {
   getSummary: async () => {
@@ -340,6 +384,30 @@ export const notesApi = {
   deleteTag: async (id: string) => {
     const res = await api.delete(`/notes/tags/${id}`);
     return res.data;
+  },
+};
+
+// --- Preferences ---
+export interface Preference {
+  integrations?: {
+    google?: boolean;
+    notion?: boolean;
+    spotify?: boolean;
+    github?: boolean;
+    trello?: boolean;
+  };
+  theme?: string;
+  settings?: Record<string, unknown>;
+}
+
+export const preferencesApi = {
+  get: async () => {
+    const res = await api.get("/preferences");
+    return res.data as Preference;
+  },
+  update: async (data: Partial<Preference>) => {
+    const res = await api.put("/preferences", data);
+    return res.data as Preference;
   },
 };
 

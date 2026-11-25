@@ -28,6 +28,9 @@ router.put('/', async (req, res) => {
             preference.integrations = { ...preference.integrations, ...req.body.integrations };
         }
         if (req.body.theme) preference.theme = req.body.theme;
+        if (req.body.settings && typeof req.body.settings === 'object') {
+            preference.settings = { ...(preference.settings || {}), ...req.body.settings };
+        }
 
         preference.updatedAt = Date.now();
 
