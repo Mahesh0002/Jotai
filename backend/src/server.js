@@ -11,7 +11,7 @@ const app = express();
 // Middleware
 app.use(helmet());
 app.use(express.json());
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 
 // Connect to MongoDB
 mongoose.connect(config.mongoUri)
@@ -19,6 +19,9 @@ mongoose.connect(config.mongoUri)
   .catch((err) => console.error('Error connecting to MongoDB:', err));
 
 // Route Imports
+const authRoutes = require('./routes/authRoutes');
+const { contextMiddleware } = require('./middlewares/requestContext');
+const requireUser = require('./middlewares/requireUser');
 const goalRoutes = require('./routes/goalRoutes');
 const habitRoutes = require('./routes/habitRoutes');
 const noteRoutes = require('./routes/noteRoutes');
@@ -38,6 +41,10 @@ const assistantRoutes = require('./routes/assistantRoutes');
 
 // API Versioning - mount routes under /api/v1/
 const API_PREFIX = '/api/v1';
+
+// Auth is public; every other API route requires a user cookie or runner token.
+app.use(`${API_PREFIX}/auth`, contextMiddleware, authRoutes);
+app.use(API_PREFIX, contextMiddleware, requireUser);
 
 app.use(`${API_PREFIX}/goals`, goalRoutes);
 app.use(`${API_PREFIX}/habits`, habitRoutes);

@@ -15,6 +15,7 @@ import { Route as FocusRouteImport } from './routes/focus'
 import { Route as HabitsRouteImport } from './routes/habits'
 import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as ProgressRouteImport } from './routes/progress'
 import { Route as ProposalsRouteImport } from './routes/proposals'
@@ -50,6 +51,11 @@ const InsightsRoute = InsightsRouteImport.update({
 const IntegrationsRoute = IntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NotesRoute = NotesRouteImport.update({
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/habits': typeof HabitsRoute
   '/insights': typeof InsightsRoute
   '/integrations': typeof IntegrationsRoute
+  '/login': typeof LoginRoute
   '/notes': typeof NotesRoute
   '/progress': typeof ProgressRoute
   '/proposals': typeof ProposalsRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByTo {
   '/habits': typeof HabitsRoute
   '/insights': typeof InsightsRoute
   '/integrations': typeof IntegrationsRoute
+  '/login': typeof LoginRoute
   '/notes': typeof NotesRoute
   '/progress': typeof ProgressRoute
   '/proposals': typeof ProposalsRoute
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/habits': typeof HabitsRoute
   '/insights': typeof InsightsRoute
   '/integrations': typeof IntegrationsRoute
+  '/login': typeof LoginRoute
   '/notes': typeof NotesRoute
   '/progress': typeof ProgressRoute
   '/proposals': typeof ProposalsRoute
@@ -135,6 +144,7 @@ export interface FileRouteTypes {
     | '/habits'
     | '/insights'
     | '/integrations'
+    | '/login'
     | '/notes'
     | '/progress'
     | '/proposals'
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
     | '/habits'
     | '/insights'
     | '/integrations'
+    | '/login'
     | '/notes'
     | '/progress'
     | '/proposals'
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/habits'
     | '/insights'
     | '/integrations'
+    | '/login'
     | '/notes'
     | '/progress'
     | '/proposals'
@@ -178,6 +190,7 @@ export interface RootRouteChildren {
   HabitsRoute: typeof HabitsRoute
   InsightsRoute: typeof InsightsRoute
   IntegrationsRoute: typeof IntegrationsRoute
+  LoginRoute: typeof LoginRoute
   NotesRoute: typeof NotesRoute
   ProgressRoute: typeof ProgressRoute
   ProposalsRoute: typeof ProposalsRoute
@@ -228,6 +241,13 @@ declare module '@tanstack/react-router' {
       path: '/integrations'
       fullPath: '/integrations'
       preLoaderRoute: typeof IntegrationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/notes': {
@@ -282,6 +302,7 @@ const rootRouteChildren: RootRouteChildren = {
   HabitsRoute: HabitsRoute,
   InsightsRoute: InsightsRoute,
   IntegrationsRoute: IntegrationsRoute,
+  LoginRoute: LoginRoute,
   NotesRoute: NotesRoute,
   ProgressRoute: ProgressRoute,
   ProposalsRoute: ProposalsRoute,

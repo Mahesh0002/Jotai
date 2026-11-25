@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
+const scopedPlugin = require('../middlewares/scopingPlugin');
 
 const goalSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
     title: {
         type: String,
         required: true,
@@ -39,5 +41,7 @@ goalSchema.pre('save', function (next) {
     this.completed = this.status === 'completed';
     next();
 });
+
+goalSchema.plugin(scopedPlugin);
 
 module.exports = mongoose.model('Goal', goalSchema);

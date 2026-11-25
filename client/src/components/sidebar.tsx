@@ -13,10 +13,11 @@ import {
   Trophy,
   Sparkles,
   Flame,
+  LogOut,
 } from "lucide-react";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useQuery } from "@tanstack/react-query";
-import { preferencesApi, proposalsApi, todayApi } from "@/lib/api";
+import { authApi, preferencesApi, proposalsApi, todayApi } from "@/lib/api";
 import { isGitHubConnected, isSpotifyConnected } from "@/lib/integrations-store";
 import { NowPlayingWidget } from "@/components/NowPlayingWidget";
 
@@ -207,6 +208,15 @@ export function Sidebar({ onOpenIntegrations }: { onOpenIntegrations: () => void
         >
           <Sparkles className="h-4 w-4" />
           AI Assistant
+        </button>
+        <button
+          onClick={() => {
+            void authApi.logout().finally(() => window.location.assign("/login"));
+          }}
+          className="flex w-full items-center gap-3 rounded-xl border border-zinc-800 px-3 py-2 text-xs text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-200"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          Sign out
         </button>
       </div>
     </aside>

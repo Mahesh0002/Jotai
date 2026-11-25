@@ -7,6 +7,7 @@ import { FocusSettingsCard } from "@/components/settings/FocusSettingsCard";
 import { NotificationSettingsCard } from "@/components/settings/NotificationSettingsCard";
 import { AiAssistantCard } from "@/components/settings/AiAssistantCard";
 import { IntegrationsSettingsCard } from "@/components/settings/IntegrationsSettingsCard";
+import { CalendarFeedCard } from "@/components/settings/CalendarFeedCard";
 import { DataExportCard } from "@/components/settings/DataExportCard";
 import { KeyboardShortcutsCard } from "@/components/settings/KeyboardShortcutsCard";
 import { DangerZoneCard } from "@/components/settings/DangerZoneCard";
@@ -48,6 +49,7 @@ function Settings() {
 
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
               <IntegrationsSettingsCard />
+              <CalendarFeedCard />
               <DataExportCard />
               <KeyboardShortcutsCard />
             </div>

@@ -1,7 +1,7 @@
 # Jötai — Implementation Status
 
 Last updated: 2026-11-25. Scope: Phase A (A1–A3), Phase B (B1–B4), Phase C
-(C1–C2). Phases D–F remain locked.
+(C1–C6). Phases D–F remain locked.
 
 The Runner is `runner/` (Python/FastAPI). The web app is `client/` + `backend/`.
 
@@ -28,15 +28,17 @@ The Runner is `runner/` (Python/FastAPI). The web app is `client/` + `backend/`.
 | Centralized service URLs | Done | `client/src/lib/config.ts` | grep: localhost only in config defaults |
 | External signals bridge | Done | `backend/src/controllers/{news,stock,weather}Controller.js`, `client/src/components/insights/ExternalSignalsSidebar.tsx` | `backend/tests/externalSignals.test.js` (3 cases) |
 | Settings persistence + integration status | Done (static review) | `client/src/contexts/SettingsContext.tsx`, `backend/src/routes/preferenceRoutes.js`, `client/src/lib/integrations-store.ts` | `backend/tests/preferences.test.js` (2 cases); no UI runner |
+| Cookie auth + per-user scoping | Done (static review) | `backend/src/middlewares/{requestContext,requireUser,scopingPlugin}.js`, `backend/src/routes/authRoutes.js`, `client/src/routes/login.tsx` | `backend/tests/auth.test.js`, `accessGuard.test.js`; no UI runner |
+| Real calendar bridge (ICS) | Done | `backend/src/utils/ical.js`, `backend/src/controllers/todayController.js`, `client/src/components/settings/CalendarFeedCard.tsx` | `backend/tests/ical.test.js`, `calendarFeed.test.js` |
 | Redis event consumer | Present, untested | `runner/events/consumer.py`, `backend/src/services/eventPublisher.js` | not run (no Redis in this environment) |
 | Bounded chat history (6 turns) | Done | `runner/services/conversation_store.py` | `runner/test_conversation.py` |
 | Pending confirmation survives a turn | Done | `runner/services/conversation_store.py`, `orchestrator.py` | `runner/test_conversation.py`, `runner/test_orchestrator_flow.py` |
-| Calendar-aware planning | Done against synthetic data | `runner/agents/planning.py`, `backend/src/controllers/todayController.js` | `runner/test_planning_calendar.py` |
+| Calendar-aware planning | Done with ICS subscription | `runner/agents/planning.py`, `backend/src/controllers/todayController.js` | `runner/test_planning_calendar.py`, `backend/tests/calendarFeed.test.js` |
 | `estimate_duration` | Done | `runner/services/stats.py`, `runner/agents/tools.py` | `runner/test_stats.py` |
 | `suggest_subtasks` proposal | Done | `runner/agents/tools.py` | `runner/test_agents.py` |
 | Decision log on accept/reject | Done | `backend/src/models/DecisionLog.js`, `proposalController.js` | `backend/tests/proposalDecisions.test.js` |
 | Deterministic preference profile | Done | `runner/services/stats.py` | `runner/test_stats.py`, `test_planning_calendar.py`, `test_habit_insight.py` |
-| Tests | 52 Python + 13 Node | `runner/test_*.py`, `backend/tests/*.test.js` | see commands below |
+| Tests | 52 Python (prior run) + 32 Node | `runner/test_*.py`, `backend/tests/*.test.js` | see commands below; pytest unavailable here |
 
 ## Invariant compliance
 
@@ -59,12 +61,12 @@ The Runner is `runner/` (Python/FastAPI). The web app is `client/` + `backend/`.
 8. **Model config — PASS.** Runner and Node default to `gemini-3.6-flash`;
    the old Node `gemini-1.5-pro` literal was removed.
 9. **Python never touches MongoDB — PASS.** `runner` uses `requests` only.
-10. **Auth — PASS for Runner-facing writes.** `serviceAuth` rejects
-    missing/invalid tokens, verifies user JWTs, compares the service token with
-    `crypto.timingSafeEqual`, and honors `x-jotai-user-id` only on the service
-    path. Local UI routes remain unauthenticated because no login flow exists.
-11. **No per-user scoping — KNOWN LIMITATION.** `Task.userId` exists but is
-    not populated/filtered. Do not deploy publicly.
+10. **Auth — PASS.** UI requests use an HTTP-only `jotai_token` cookie; Runner
+    calls use the service token. Missing/invalid credentials get 401, and
+    `serviceAuth` still compares tokens with `crypto.timingSafeEqual`.
+11. **Per-user scoping — PASS for scoped models.** A Mongoose plugin uses async
+    request context to filter reads by `userId` and stamp new documents. Runner
+    service calls stay global unless `RUNNER_USER_ID` sends `x-jotai-user-id`.
 12. **Privacy — tests use synthetic data.** Live Gemini is never called in
     tests; stub is the default.
 
@@ -74,14 +76,13 @@ The Runner is `runner/` (Python/FastAPI). The web app is `client/` + `backend/`.
 $ LLM_PROVIDER=stub python -m pytest runner/ -q
 52 passed in 0.31s
 
+# npm available in a full toolchain:
 $ cd backend && npm test
-# tests 20
-# pass 20
-# fail 0
+# 32 tests
 
 # Verified in this environment with Deno (no Node/npm installed):
-$ cd backend && deno test --unstable-detect-cjs --node-modules-dir=manual --allow-all tests/*.test.js
-# 20 passed
+$ cd backend && deno test --no-check --unstable-detect-cjs --node-modules-dir=manual --allow-all tests/*.test.js
+# 32 passed | 0 failed
 ```
 
 ```text
@@ -97,11 +98,12 @@ runner.app import ok
 
 ## Remaining gaps / not done
 
-- **Real calendar**: `/api/v1/today/calendar` returns synthetic events; planning
-  checks against those. A real integration is not implemented.
-- **Proposals inbox not browser-verified**: added after the last recorded test run; no
-  node/npm in this environment to build or exercise it.
-- **No login flow** for the UI; task/habit/focus routes are local and open.
+- **Calendar feed setup**: users must supply a public .ics subscription URL in
+  Settings (or `CALENDAR_ICS_URL`); there is no OAuth connect flow.
+- **UI not browser-verified**: no node/npm here to build or exercise login,
+  settings, calendar, or proposals screens.
+- **Runner service calls are global unless `RUNNER_USER_ID` is set**; the optional
+  impersonation header scopes them to one user.
 - **Redis path untested** here (no Redis server). `redis` is now in
   `requirements.txt`.
 - **No live Gemini test** (by design; free-tier budget). The Gemini adapter is

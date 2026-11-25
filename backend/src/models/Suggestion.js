@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
+const scopedPlugin = require('../middlewares/scopingPlugin');
 
 const suggestionSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
   type: {
     type: String,
     required: true
@@ -31,5 +33,7 @@ const suggestionSchema = new mongoose.Schema({
     default: 'pending'
   }
 }, { timestamps: true });
+
+suggestionSchema.plugin(scopedPlugin);
 
 module.exports = mongoose.model('Suggestion', suggestionSchema);

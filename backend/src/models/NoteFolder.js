@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
+const scopedPlugin = require('../middlewares/scopingPlugin');
 
 const noteFolderSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
     name: {
         type: String,
         required: true,
@@ -19,5 +21,7 @@ const noteFolderSchema = new mongoose.Schema({
         default: Date.now
     }
 });
+
+noteFolderSchema.plugin(scopedPlugin);
 
 module.exports = mongoose.model('NoteFolder', noteFolderSchema);

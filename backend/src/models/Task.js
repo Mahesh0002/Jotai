@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const scopedPlugin = require('../middlewares/scopingPlugin');
 
 const taskSchema = new mongoose.Schema({
   title: { 
@@ -56,5 +57,7 @@ const taskSchema = new mongoose.Schema({
 }, { 
   timestamps: true 
 });
+
+taskSchema.plugin(scopedPlugin);
 
 module.exports = mongoose.model('Task', taskSchema);

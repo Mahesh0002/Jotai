@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
+const scopedPlugin = require('../middlewares/scopingPlugin');
 
 const focusBlockSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
   taskId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Task',
@@ -58,5 +60,7 @@ const focusBlockSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+focusBlockSchema.plugin(scopedPlugin);
 
 module.exports = mongoose.model('FocusBlock', focusBlockSchema);

@@ -1,3 +1,7 @@
+const axios = require('axios');
+const config = require('../config');
+const Preference = require('../models/Preference');
+const { parseIcs } = require('../utils/ical');
 const Goal = require('../models/Goal');
 const Task = require('../models/Task');
 const FocusBlock = require('../models/FocusBlock');
@@ -69,8 +73,7 @@ exports.getSummary = async (req, res) => {
 };
 
 // GET /api/v1/today/calendar?startDate=...&endDate=...
-// NOTE: synthetic events, not a real calendar integration. The Runner labels
-// this data as synthetic in its planning prompt.
+// Real ICS subscription feed from preferences or CALENDAR_ICS_URL.
 exports.getCalendarEvents = async (req, res) => {
     try {
         const start = req.query.startDate ? new Date(req.query.startDate) : new Date();
@@ -78,35 +81,24 @@ exports.getCalendarEvents = async (req, res) => {
             ? new Date(req.query.endDate)
             : new Date(start.getTime() + 24 * 60 * 60 * 1000);
 
-        const templates = [
-            { title: "NLP Lecture", detail: "CS Building, Room 301", time: "10:00", minutes: 60, color: "bg-purple-500" },
-            { title: "Project Meeting", detail: "Online", time: "13:30", minutes: 45, color: "bg-blue-500" },
-            { title: "Gym", detail: "Downtown Fitness", time: "16:00", minutes: 60, color: "bg-emerald-500" },
-            { title: "Assignment Deadline", detail: "NLP Assignment", time: "18:00", minutes: 30, color: "bg-red-500" },
-            { title: "Dinner", detail: "With Sarah", time: "19:30", minutes: 60, color: "bg-amber-500" }
-        ];
-
-        const events = [];
-        const cursor = new Date(start);
-        cursor.setHours(0, 0, 0, 0);
-        let day = 0;
-        while (cursor < end && day < 14) {
-            const dayStr = cursor.toISOString().split('T')[0];
-            for (const template of templates) {
-                const eventStart = new Date(`${dayStr}T${template.time}:00`);
-                events.push({
-                    title: template.title,
-                    detail: template.detail,
-                    start: eventStart.getTime(),
-                    end: eventStart.getTime() + template.minutes * 60 * 1000,
-                    color: template.color
-                });
-            }
-            cursor.setDate(cursor.getDate() + 1);
-            day += 1;
+        const preference = await Preference.findOne();
+        const url = (preference && preference.calendarIcsUrl) || config.calendarIcsUrl;
+        if (!url) {
+            return res.json({
+                success: true,
+                data: [],
+                configured: false,
+                message: 'No calendar feed configured. Add an ICS URL in Settings.'
+            });
         }
 
-        res.json({ success: true, data: events, synthetic: true });
+        const response = await axios.get(url, { timeout: 10000, responseType: 'text' });
+        const from = start.getTime();
+        const to = end.getTime();
+        const events = parseIcs(response.data).filter(
+            (event) => event.end >= from && event.start <= to
+        );
+        res.json({ success: true, data: events, configured: true });
     } catch (error) {
         console.error("Error in getCalendarEvents:", error);
         res.status(500).json({ success: false, message: error.message });

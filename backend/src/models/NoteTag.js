@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
+const scopedPlugin = require('../middlewares/scopingPlugin');
 
 const noteTagSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
     name: {
         type: String,
         required: true,
@@ -16,5 +18,7 @@ const noteTagSchema = new mongoose.Schema({
         default: Date.now
     }
 });
+
+noteTagSchema.plugin(scopedPlugin);
 
 module.exports = mongoose.model('NoteTag', noteTagSchema);

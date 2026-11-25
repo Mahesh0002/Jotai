@@ -2,16 +2,13 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from runner.config import settings
+from runner.config import HEADERS, settings
 
 
 class APIClient:
     def __init__(self):
         self.base_url = settings.NODE_API_URL
-        self.headers = {
-            "Authorization": f"Bearer {settings.RUNNER_SERVICE_TOKEN}",
-            "Content-Type": "application/json",
-        }
+        self.headers = dict(HEADERS)
 
     def _get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         response = requests.get(f"{self.base_url}{endpoint}", headers=self.headers, params=params, timeout=15)

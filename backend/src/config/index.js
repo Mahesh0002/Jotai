@@ -16,4 +16,5 @@ module.exports = {
   githubClientId: process.env.GITHUB_CLIENT_ID || '',
   githubClientSecret: process.env.GITHUB_CLIENT_SECRET || '',
   runnerServiceToken: process.env.RUNNER_SERVICE_TOKEN || '',
+  calendarIcsUrl: process.env.CALENDAR_ICS_URL || '',
 };

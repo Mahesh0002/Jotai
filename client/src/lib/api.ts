@@ -4,10 +4,52 @@ import { BACKEND_API_URL } from "@/lib/config";
 // Base API instance
 export const api = axios.create({
   baseURL: BACKEND_API_URL,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (
+      error.response?.status === 401 &&
+      typeof window !== "undefined" &&
+      !window.location.pathname.startsWith("/login")
+    ) {
+      window.location.assign("/login");
+    }
+    return Promise.reject(error);
+  },
+);
+
+export interface AuthUser {
+  id: string;
+  username?: string;
+  email?: string;
+}
+
+// Auth API (HTTP-only cookie; no token in client storage)
+export const authApi = {
+  me: async () => {
+    const res = await api.get("/auth/me");
+    return res.data.data as AuthUser | null;
+  },
+  login: async (email: string, password: string) => {
+    const res = await api.post("/auth/login", { email, password });
+    return res.data.data as AuthUser;
+  },
+  register: async (email: string, password: string, username?: string) => {
+    const payload: Record<string, string> = { email, password };
+    if (username) payload.username = username;
+    const res = await api.post("/auth/register", payload);
+    return res.data.data as AuthUser;
+  },
+  logout: async () => {
+    await api.post("/auth/logout");
+  },
+};
 
 export interface Task {
   _id: string;
@@ -389,6 +431,7 @@ export const notesApi = {
 
 // --- Preferences ---
 export interface Preference {
+  calendarIcsUrl?: string;
   integrations?: {
     google?: boolean;
     notion?: boolean;

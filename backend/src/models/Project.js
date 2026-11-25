@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const scopedPlugin = require('../middlewares/scopingPlugin');
 
 const projectSchema = new mongoose.Schema({
   name: { 
@@ -24,5 +25,7 @@ const projectSchema = new mongoose.Schema({
 }, { 
   timestamps: true 
 });
+
+projectSchema.plugin(scopedPlugin);
 
 module.exports = mongoose.model('Project', projectSchema);

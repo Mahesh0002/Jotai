@@ -5,6 +5,25 @@ within each phase.
 
 ## Phase C
 
+### C6 — Cookie auth, per-user scoping, and ICS calendar (done)
+- `backend/src/middlewares/{requestContext,requireUser,scopingPlugin}.js`: async
+  request context identifies UI cookie/JWT or Runner service token; a global API
+  guard requires one of them; a Mongoose plugin filters by/stamps `userId`.
+- `backend/src/routes/authRoutes.js`: register/login/logout/me with bcryptjs and
+  an HTTP-only `jotai_token` cookie. `client/src/routes/login.tsx`, sidebar
+  sign-out, and axios `withCredentials` + 401 redirect complete the UI flow.
+- `backend/src/utils/ical.js` + `Preference.calendarIcsUrl` / `CALENDAR_ICS_URL`:
+  `/today/calendar` now fetches a real ICS subscription and filters by date;
+  no feed configured returns an explicit empty result. The settings card lets
+  users paste a Google/Outlook/Apple subscription link.
+- `runner/config.py` / `runner/api_client.py`: optional `RUNNER_USER_ID` sends
+  `x-jotai-user-id` so Runner service actions can be scoped to one user.
+- New tests: `auth.test.js` (3), `accessGuard.test.js` (5), `ical.test.js` (2),
+  `calendarFeed.test.js` (2). Full backend suite: 32 passed via Deno
+  `--no-check` Node compatibility; client files parse-checked with Deno.
+- Not verified in a browser: no node/npm in this environment. Python tests were
+  not re-run here (pytest unavailable); the prior 52-pass snapshot stands.
+
 ### C5 — Remaining API pipelines and bridges (done)
 - News/stock/weather controllers now normalize upstream payloads to
   `{ success, data }`; the Today widgets and Insights sidebar consume the same shape.
@@ -156,5 +175,5 @@ python -c "import runner.app"                   → ok
 ## Not done (locked / gaps)
 - Phase D (insights narrative), Phase E (local llama.cpp), Phase F (semantic
   notes search) remain locked.
-- Real calendar integration; proposals inbox UI; UI login/per-user scoping.
+- Calendar OAuth connect flow; browser verification of UI login/settings/proposals.
 - Redis consumer not exercised (no Redis here); live Gemini not called.

@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
+const scopedPlugin = require('../middlewares/scopingPlugin');
 
 const decisionLogSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
   proposalId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Proposal',
@@ -24,5 +26,7 @@ const decisionLogSchema = new mongoose.Schema({
     default: Date.now
   }
 }, { timestamps: true });
+
+decisionLogSchema.plugin(scopedPlugin);
 
 module.exports = mongoose.model('DecisionLog', decisionLogSchema);

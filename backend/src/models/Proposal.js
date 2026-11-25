@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
+const scopedPlugin = require('../middlewares/scopingPlugin');
 
 const ProposalSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
   type: {
     type: String,
     required: true,
@@ -20,5 +22,7 @@ const ProposalSchema = new mongoose.Schema({
     default: []
   }
 }, { timestamps: true });
+
+ProposalSchema.plugin(scopedPlugin);
 
 module.exports = mongoose.model('Proposal', ProposalSchema);

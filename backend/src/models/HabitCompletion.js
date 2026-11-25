@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
+const scopedPlugin = require('../middlewares/scopingPlugin');
 
 const habitCompletionSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
   habitId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Habit',
@@ -29,5 +31,7 @@ const habitCompletionSchema = new mongoose.Schema({
 
 // Ensure a habit can only have one completion record per scheduled date
 habitCompletionSchema.index({ habitId: 1, scheduledDate: 1 }, { unique: true });
+
+habitCompletionSchema.plugin(scopedPlugin);
 
 module.exports = mongoose.model('HabitCompletion', habitCompletionSchema);
