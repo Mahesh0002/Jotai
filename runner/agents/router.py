@@ -1,25 +1,20 @@
-"""N-way intent router: exact triggers -> keyword rules -> LLM -> UNKNOWN."""
-from __future__ import annotations
+"""Legacy intent classifier used by the orchestrator and its tests.
 
-import logging
+The primary agent entrypoint (``agents.agent_loop``) no longer uses this
+module: in-domain routing there is fully deterministic. This classifier remains
+for the older scheduled/action entrypoints and falls back to the configured
+model only when rules cannot decide.
+"""
+
 import re
 from typing import Any, Dict, Optional
 
-from runner.llm_provider import BaseLLMProvider, get_llm_provider
+from runner.llm_provider import get_llm_provider
 
-logger = logging.getLogger(__name__)
+INTENTS = ("TASK", "GOAL", "HABIT", "PLAN", "INSIGHT")
 
-VALID_INTENTS = ("TASK", "GOAL", "HABIT", "PLAN", "INSIGHT", "UNKNOWN")
-
-# Scheduled / programmatic triggers. Checked before any keyword work.
-EXACT_TRIGGERS = {
-    "plan": "PLAN",
-    "plan_today": "PLAN",
+EXACT = {
     "plan_tomorrow": "PLAN",
-    "daily_plan": "PLAN",
-    "weekly_plan": "PLAN",
-    "insight": "INSIGHT",
-    "weekly_insight": "INSIGHT",
     "habit_insight": "INSIGHT",
     "task.create": "TASK",
     "task.complete": "TASK",
@@ -30,117 +25,72 @@ EXACT_TRIGGERS = {
     "habit.delete": "HABIT",
 }
 
-KEYWORDS = {
-    "TASK": [
-        "task", "tasks", "to-do", "todo", "finish", "mark done", "complete task",
-        "remind me to", "buy groceries", "send report", "deadline",
-    ],
-    "GOAL": [
-        "goal", "goals", "objective", "milestone", "quest", "ambition",
-        "save money", "marathon", "this year", "by december",
-    ],
-    "HABIT": [
-        "habit", "habits", "routine", "every day", "every morning", "every night",
-        "daily", "streak", "meditate", "workout", "read 20 pages",
-    ],
-    "PLAN": [
-        "plan", "schedule", "calendar", "time block", "focus block", "tomorrow",
-        "my day", "agenda", "time-block",
-    ],
-    "INSIGHT": [
-        "insight", "analyze", "analysis", "pattern", "correlation",
-        "how am i doing", "weekly summary", "progress report",
-    ],
+RULES: Dict[str, tuple] = {
+    "TASK": (
+        r"\btasks?\b", r"\bto-?dos?\b", r"\bmark\b.*\bdone\b", r"\bcomplete\b",
+        r"\bfinish\b.*\btask\b", r"\bcheck off\b",
+    ),
+    "GOAL": (
+        r"\bgoals?\b", r"\bsave\s+\$?\d", r"\bmarathon\b", r"\bthis year\b.*\b(?:save|reach|earn)\b",
+    ),
+    "HABIT": (
+        r"\bhabits?\b", r"\bevery\s+(?:day|morning|evening|week)\b", r"\bweekly\b",
+    ),
+    "PLAN": (
+        r"\bplan\b", r"\bschedule\b", r"\bfocus blocks?\b", r"\bfocus time\b",
+    ),
+    "INSIGHT": (
+        r"\banaly[sz]e\b", r"\bhow am i doing\b", r"\bpatterns?\b",
+        r"\bstats?\b", r"\bstatistics\b", r"\binsight\b",
+    ),
 }
 
-CLASSIFIER_PROMPT = """Classify the user request into exactly one label:
-TASK (one-time completable action), GOAL (measurable outcome over time),
-HABIT (recurring behavior), PLAN (schedule/time blocks), INSIGHT (analysis of
-existing data), UNKNOWN (cannot tell).
+CLASSIFY_PROMPT = """Classify the user request into exactly one of:
+TASK, GOAL, HABIT, PLAN, INSIGHT, UNKNOWN.
 
-Reply with the label only. No explanation.
+Rules:
+- TASK: a one-time, completable action.
+- GOAL: a measurable outcome over days/weeks/months.
+- HABIT: a recurring behaviour.
+- PLAN: arranging time or scheduling focus blocks.
+- INSIGHT: analysis of habits or productivity.
+- UNKNOWN: anything else.
 
-User request: {request}"""
-
-
-def _normalize(text: str) -> str:
-    return re.sub(r"\s+", " ", (text or "").strip().lower())
-
-
-def _parse_label(raw: str) -> Optional[str]:
-    upper = (raw or "").upper()
-    for label in VALID_INTENTS:
-        if re.search(rf"\b{label}\b", upper):
-            return label
-    return None
+Return only the label, nothing else.
+User request: {text}
+"""
 
 
 def _rule_scores(text: str) -> Dict[str, int]:
-    normalized = _normalize(text)
-    scores: Dict[str, int] = {}
-    for intent, keywords in KEYWORDS.items():
-        # Longest first so "tasks" is not double-counted via "task".
-        matched: list = []
-        for keyword in sorted(keywords, key=len, reverse=True):
-            if keyword in normalized and not any(keyword in longer for longer in matched):
-                matched.append(keyword)
-        if matched:
-            scores[intent] = len(matched)
+    lowered = text.lower()
+    scores = {}
+    for intent, patterns in RULES.items():
+        count = sum(1 for pattern in patterns if re.search(pattern, lowered))
+        if count:
+            scores[intent] = count
     return scores
 
 
-def classify_intent(
-    text: str,
-    llm: Optional[BaseLLMProvider] = None,
-    session_id: Optional[str] = None,
-) -> Dict[str, Any]:
-    """Return {intent, stage, raw, scores}. Never silently defaults to PLAN."""
-    normalized = _normalize(text)
+def _llm_intent(text: str, llm: Any) -> Dict[str, Any]:
+    response = llm.generate(CLASSIFY_PROMPT.format(text=text))
+    raw = (response.content or "").strip()
+    if raw.upper() not in INTENTS and raw.upper() != "UNKNOWN":
+        return {"intent": "UNKNOWN", "stage": "llm_invalid", "raw": raw, "scores": {}}
+    return {"intent": raw.upper(), "stage": "llm", "raw": raw, "scores": {}}
 
-    if normalized in EXACT_TRIGGERS:
-        result = {
-            "intent": EXACT_TRIGGERS[normalized],
-            "stage": "exact",
-            "raw": text,
-            "scores": {},
-        }
-        logger.info(
-            "intent_classification session=%s raw=%r intent=%s stage=%s",
-            session_id, text, result["intent"], result["stage"],
-        )
-        return result
 
-    scores = _rule_scores(text)
+def classify_intent(text: str, session_id: Optional[str] = None, llm: Any = None) -> Dict[str, Any]:
+    """Classify with exact rules first, then keyword rules, then the model."""
+    value = (text or "").strip()
+    key = value.lower()
+    if key in EXACT:
+        return {"intent": EXACT[key], "stage": "exact", "raw": value, "scores": {}}
+
+    scores = _rule_scores(value)
     if scores:
         ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
-        best_intent, best_score = ranked[0]
-        second_score = ranked[1][1] if len(ranked) > 1 else 0
-        if best_score > second_score:
-            result = {
-                "intent": best_intent,
-                "stage": "rule",
-                "raw": text,
-                "scores": scores,
-            }
-            logger.info(
-                "intent_classification session=%s raw=%r intent=%s stage=%s scores=%s",
-                session_id, text, result["intent"], result["stage"], scores,
-            )
-            return result
+        if len(ranked) == 1 or ranked[0][1] > ranked[1][1]:
+            return {"intent": ranked[0][0], "stage": "rule", "raw": value, "scores": scores}
 
-    provider = llm or get_llm_provider()
-    try:
-        raw = provider.generate(CLASSIFIER_PROMPT.format(request=text)).content
-    except Exception as exc:
-        logger.warning("intent_classifier_llm_failed session=%s error=%s", session_id, exc)
-        raw = ""
-
-    label = _parse_label(raw)
-    intent = label or "UNKNOWN"
-    stage = "llm" if label else "llm_invalid"
-    result = {"intent": intent, "stage": stage, "raw": raw, "scores": scores}
-    logger.info(
-        "intent_classification session=%s raw=%r llm_raw=%r intent=%s stage=%s",
-        session_id, text, raw, intent, stage,
-    )
-    return result
+    provider = llm if llm is not None else get_llm_provider()
+    return _llm_intent(value, provider)

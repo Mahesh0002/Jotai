@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Check, MoreHorizontal, Pencil, Trash } from "lucide-react";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/card";
 import { useHabits } from "@/hooks/useHabits";
 import { Habit } from "@/lib/api";
 import clsx from "clsx";

@@ -84,10 +84,7 @@ export function GoalsPanel() {
             {goals.map((goal) => {
               const completed = goal.status === "completed";
               return (
-                <li
-                  key={goal._id}
-                  className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4"
-                >
+                <li key={goal._id} className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3
@@ -96,7 +93,9 @@ export function GoalsPanel() {
                         {goal.title}
                       </h3>
                       {goal.description ? (
-                        <p className="mt-1 line-clamp-2 text-xs text-zinc-500">{goal.description}</p>
+                        <p className="mt-1 line-clamp-2 text-xs text-zinc-500">
+                          {goal.description}
+                        </p>
                       ) : null}
                       <p className="mt-1 text-[10px] text-zinc-600">{formatDate(goal.dueDate)}</p>
                     </div>

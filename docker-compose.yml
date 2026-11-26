@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: jotai-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  node:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: jotai-node
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - JWT_SECRET=${JWT_SECRET:-change-me-local-secret}
+      - RUNNER_SERVICE_TOKEN=${RUNNER_SERVICE_TOKEN:-change-me-local-token}
+      - DB_PATH=/data/jotai.db
+      - CALENDAR_ICS_PATH=/data/incoming.ics
+      - CALENDAR_OUTBOUND_ICS_PATH=/data/jotai-calendar.ics
+      - PRIVACY_MODE=strict
+    volumes:
+      - jotai_data:/data
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      - ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  runner:
+    build:
+      context: ./runner
+      dockerfile: Dockerfile
+    container_name: jotai-runner
+    ports:
+      - "8000:8000"
+    environment:
+      - LLM_PROVIDER=ollama
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_CHAT_MODEL=qwen2.5:3b-instruct-q4_K_M
+      - OLLAMA_EMBED_MODEL=nomic-embed-text
+      - NODE_API_URL=http://node:5000/api/v1
+      - RUNNER_SERVICE_TOKEN=${RUNNER_SERVICE_TOKEN:-change-me-local-token}
+      - RUNNER_USER_ID=local_user
+      - PRIVACY_MODE=strict
+      - AGENT_MAX_STEPS=6
+      - INDEX_REFRESH_SECONDS=300
+      - MAX_MESSAGES=200
+      - CHAT_HISTORY_TURNS=8
+      - PENDING_ACTION_TTL_SECONDS=600
+      - BRIEFING_TIME=07:00
+      - WORKOUT_TIME=17:00
+    volumes:
+      - jotai_data:/data
+      - ./runner:/app
+    depends_on:
+      - node
+      - ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  ollama_data:
+  jotai_data:

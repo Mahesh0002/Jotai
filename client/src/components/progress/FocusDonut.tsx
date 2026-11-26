@@ -11,7 +11,7 @@ export function FocusDonut({ period }: { period: Period }) {
   }, [period]);
 
   const total = data ? data.total : 0;
-  
+
   const getPercent = (val: number) => {
     if (!total) return 0;
     return (val / total) * 100;
@@ -34,10 +34,30 @@ export function FocusDonut({ period }: { period: Period }) {
   const stop3 = stop2 + meetingsPct;
 
   const displayData = [
-    { label: "Deep Work", time: data ? formatHours(data.deepWork) : "-", percent: `${deepWorkPct.toFixed(1)}%`, color: "bg-purple-500" },
-    { label: "Project Work", time: data ? formatHours(data.projectWork) : "-", percent: `${projectWorkPct.toFixed(1)}%`, color: "bg-teal-500" },
-    { label: "Meetings & Admin", time: data ? formatHours(data.meetings) : "-", percent: `${meetingsPct.toFixed(1)}%`, color: "bg-amber-500" },
-    { label: "Breaks", time: data ? formatHours(data.breaks) : "-", percent: `${breaksPct.toFixed(1)}%`, color: "bg-blue-500" },
+    {
+      label: "Deep Work",
+      time: data ? formatHours(data.deepWork) : "-",
+      percent: `${deepWorkPct.toFixed(1)}%`,
+      color: "bg-purple-500",
+    },
+    {
+      label: "Project Work",
+      time: data ? formatHours(data.projectWork) : "-",
+      percent: `${projectWorkPct.toFixed(1)}%`,
+      color: "bg-teal-500",
+    },
+    {
+      label: "Meetings & Admin",
+      time: data ? formatHours(data.meetings) : "-",
+      percent: `${meetingsPct.toFixed(1)}%`,
+      color: "bg-amber-500",
+    },
+    {
+      label: "Breaks",
+      time: data ? formatHours(data.breaks) : "-",
+      percent: `${breaksPct.toFixed(1)}%`,
+      color: "bg-blue-500",
+    },
   ];
 
   return (
@@ -57,13 +77,16 @@ export function FocusDonut({ period }: { period: Period }) {
         <div
           className="relative flex h-36 w-36 sm:h-32 sm:w-32 lg:h-36 lg:w-36 shrink-0 items-center justify-center rounded-full"
           style={{
-            background: total > 0 ? 
-              `conic-gradient(from 0deg, #a855f7 0% ${stop1}%, #14b8a6 ${stop1}% ${stop2}%, #f59e0b ${stop2}% ${stop3}%, #3b82f6 ${stop3}% 100%)` :
-              `#27272a`
+            background:
+              total > 0
+                ? `conic-gradient(from 0deg, #a855f7 0% ${stop1}%, #14b8a6 ${stop1}% ${stop2}%, #f59e0b ${stop2}% ${stop3}%, #3b82f6 ${stop3}% 100%)`
+                : `#27272a`,
           }}
         >
           <div className="absolute inset-3 flex flex-col items-center justify-center rounded-full bg-zinc-950">
-            <span className="text-lg font-bold text-white">{data ? formatHours(data.total) : "-"}</span>
+            <span className="text-lg font-bold text-white">
+              {data ? formatHours(data.total) : "-"}
+            </span>
             <span className="text-[10px] text-zinc-400">Total</span>
           </div>
         </div>

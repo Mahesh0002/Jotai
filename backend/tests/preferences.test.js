@@ -3,7 +3,9 @@ const assert = require('node:assert');
 const express = require('express');
 const request = require('supertest');
 
-const Preference = require('../src/models/Preference');
+const { setupTestDb } = require('./helpers/testDb');
+const { db, cleanup } = setupTestDb('preferences');
+
 const preferenceRoutes = require('../src/routes/preferenceRoutes');
 
 function buildApp() {
@@ -13,46 +15,34 @@ function buildApp() {
   return app;
 }
 
-function fakePreference() {
-  return {
-    integrations: { spotify: false },
-    theme: 'dark',
-    settings: {},
-    save: async function save() { return this; },
-  };
-}
+const now = new Date().toISOString();
+db.run(
+  `INSERT INTO preferences (user_id, theme, settings, integrations, updated_at) VALUES (?, ?, ?, ?, ?)`,
+  ['local_user', 'dark', '{}', '{}', now]
+);
 
 test('preferences PUT persists the settings object', async () => {
-  const originalFindOne = Preference.findOne;
-  const preference = fakePreference();
-  Preference.findOne = async () => preference;
+  const response = await request(buildApp())
+    .put('/preferences')
+    .send({ theme: 'dark', settings: { theme: 'Dark', taskDue: false } });
 
-  try {
-    const response = await request(buildApp())
-      .put('/preferences')
-      .send({ theme: 'dark', settings: { theme: 'Dark', taskDue: false } });
+  assert.strictEqual(response.status, 200);
+  assert.strictEqual(response.body.settings.theme, 'Dark');
+  assert.strictEqual(response.body.settings.taskDue, false);
 
-    assert.strictEqual(response.status, 200);
-    assert.strictEqual(response.body.settings.theme, 'Dark');
-    assert.strictEqual(response.body.settings.taskDue, false);
-    assert.strictEqual(preference.settings.taskDue, false);
-  } finally {
-    Preference.findOne = originalFindOne;
-  }
+  const row = db.get('SELECT settings FROM preferences WHERE user_id = ?', ['local_user']);
+  assert.strictEqual(JSON.parse(row.settings).taskDue, false);
 });
 
 test('preferences GET returns saved settings', async () => {
-  const originalFindOne = Preference.findOne;
-  Preference.findOne = async () => ({
-    ...fakePreference(),
-    settings: { displayName: 'Jōtai Runner' },
-  });
+  db.run(`UPDATE preferences SET settings = ? WHERE user_id = ?`, [
+    JSON.stringify({ displayName: 'Jōtai Runner' }),
+    'local_user',
+  ]);
 
-  try {
-    const response = await request(buildApp()).get('/preferences');
-    assert.strictEqual(response.status, 200);
-    assert.strictEqual(response.body.settings.displayName, 'Jōtai Runner');
-  } finally {
-    Preference.findOne = originalFindOne;
-  }
+  const response = await request(buildApp()).get('/preferences');
+  assert.strictEqual(response.status, 200);
+  assert.strictEqual(response.body.settings.displayName, 'Jōtai Runner');
 });
+
+test.after(cleanup);

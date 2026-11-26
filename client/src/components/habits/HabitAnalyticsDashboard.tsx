@@ -1,5 +1,5 @@
 import React from "react";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/card";
 import { useHabitAnalytics } from "@/hooks/useHabits";
 import { Target, TrendingUp, Flame } from "lucide-react";
 

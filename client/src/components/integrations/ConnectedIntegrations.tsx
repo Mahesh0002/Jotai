@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
 import { RefreshCw, Calendar, Music, Github, FileText, Trello, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { isSpotifyConnected, isGitHubConnected, getGitHubConnection, getSpotifyTokens } from "@/lib/integrations-store";
+import {
+  isSpotifyConnected,
+  isGitHubConnected,
+  getGitHubConnection,
+  getSpotifyTokens,
+} from "@/lib/integrations-store";
 
 type ServiceCard = {
   id: string;
@@ -53,11 +58,13 @@ export function ConnectedIntegrations({ onSelectIntegration, selectedIntegration
       id: "Spotify",
       name: "Spotify",
       icon: (
-        <div className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-          spotifyConnected
-            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-            : "bg-zinc-800/50 border-zinc-700 text-zinc-500"
-        }`}>
+        <div
+          className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+            spotifyConnected
+              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+              : "bg-zinc-800/50 border-zinc-700 text-zinc-500"
+          }`}
+        >
           <Music className="h-5 w-5" />
         </div>
       ),
@@ -71,11 +78,13 @@ export function ConnectedIntegrations({ onSelectIntegration, selectedIntegration
       id: "GitHub",
       name: "GitHub",
       icon: (
-        <div className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-          githubConnected
-            ? "bg-zinc-100/10 border-zinc-100/20 text-zinc-200"
-            : "bg-zinc-800/50 border-zinc-700 text-zinc-500"
-        }`}>
+        <div
+          className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+            githubConnected
+              ? "bg-zinc-100/10 border-zinc-100/20 text-zinc-200"
+              : "bg-zinc-800/50 border-zinc-700 text-zinc-500"
+          }`}
+        >
           <Github className="h-5 w-5" />
         </div>
       ),
@@ -113,7 +122,9 @@ export function ConnectedIntegrations({ onSelectIntegration, selectedIntegration
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 pl-1">Services</h2>
+      <h2 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 pl-1">
+        Services
+      </h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {services.map((item) => {
@@ -126,8 +137,8 @@ export function ConnectedIntegrations({ onSelectIntegration, selectedIntegration
                 isSelected
                   ? "border-purple-500/40 bg-purple-500/5"
                   : item.isConnected
-                  ? "border-zinc-700 bg-zinc-900/30 hover:bg-zinc-900/50 hover:border-zinc-600"
-                  : "border-zinc-800 bg-zinc-900/20 hover:bg-zinc-900/40 hover:border-zinc-700"
+                    ? "border-zinc-700 bg-zinc-900/30 hover:bg-zinc-900/50 hover:border-zinc-600"
+                    : "border-zinc-800 bg-zinc-900/20 hover:bg-zinc-900/40 hover:border-zinc-700"
               }`}
             >
               <div className="flex justify-between mb-4">
@@ -136,12 +147,16 @@ export function ConnectedIntegrations({ onSelectIntegration, selectedIntegration
                   <div className="flex flex-col">
                     <h3 className="text-sm font-semibold text-white">{item.name}</h3>
                     <div className="flex items-center gap-1.5 mt-1">
-                      <div className={`h-1.5 w-1.5 rounded-full ${
-                        item.isConnected
-                          ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
-                          : "bg-zinc-600"
-                      }`} />
-                      <span className={`text-[10px] font-medium ${item.isConnected ? "text-emerald-500" : "text-zinc-500"}`}>
+                      <div
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          item.isConnected
+                            ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                            : "bg-zinc-600"
+                        }`}
+                      />
+                      <span
+                        className={`text-[10px] font-medium ${item.isConnected ? "text-emerald-500" : "text-zinc-500"}`}
+                      >
                         {item.isConnected ? "Connected" : "Not connected"}
                       </span>
                     </div>
@@ -153,7 +168,9 @@ export function ConnectedIntegrations({ onSelectIntegration, selectedIntegration
                     )}
                   </div>
                 </div>
-                <ChevronRight className={`h-4 w-4 text-zinc-600 transition-transform ${isSelected ? "rotate-90 text-purple-400" : ""}`} />
+                <ChevronRight
+                  className={`h-4 w-4 text-zinc-600 transition-transform ${isSelected ? "rotate-90 text-purple-400" : ""}`}
+                />
               </div>
 
               <div className="flex flex-col gap-1 mb-4 flex-1 text-[11px] text-zinc-400">

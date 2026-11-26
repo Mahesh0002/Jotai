@@ -2,7 +2,7 @@ const config = require('../config');
 
 const errorHandler = (err, req, res, next) => {
   let { statusCode, message } = err;
-  
+
   if (!statusCode) {
     statusCode = 500;
     message = 'Internal Server Error';
@@ -11,8 +11,7 @@ const errorHandler = (err, req, res, next) => {
   res.locals.errorMessage = err.message;
 
   const response = {
-    status: 'error',
-    statusCode,
+    success: false,
     message,
     ...(config.env === 'development' && { stack: err.stack }),
   };

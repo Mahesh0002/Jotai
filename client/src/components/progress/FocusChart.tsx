@@ -14,22 +14,22 @@ export function FocusChart({ period }: { period: Period }) {
   const numDays = period === "month" || period === "year" ? 30 : 7; // simplified view
 
   let displayData = data?.focusByDay || [];
-  
+
   if (displayData.length === 0) {
     displayData = Array.from({ length: numDays }, (_, i) => {
       const d = subDays(new Date(), numDays - 1 - i);
       return {
-        date: d.toISOString().split("T")[0],
+        date: d.toISOString().split("T")[0] ?? "",
         day: format(d, "EEE"),
-        focusSeconds: 0
+        focusSeconds: 0,
       };
     });
   }
-  
+
   // Truncate to last 7 days for the UI
   const chartData = displayData.slice(-7);
 
-  const rawVals = chartData.map(d => d.focusSeconds / 3600); // in hours
+  const rawVals = chartData.map((d) => d.focusSeconds / 3600); // in hours
   const maxVal = Math.max(...rawVals, 5); // at least 5 hours max to look good
 
   // SVG dimensions
@@ -45,7 +45,10 @@ export function FocusChart({ period }: { period: Period }) {
   });
 
   const linePath = `M ${points.map((p) => `${p.x},${p.y}`).join(" L ")}`;
-  const areaPath = points.length > 0 ? `${linePath} L ${points[points.length - 1].x},${height - paddingY} L ${points[0].x},${height - paddingY} Z` : "";
+  const areaPath =
+    points.length > 0
+      ? `${linePath} L ${points[points.length - 1]!.x},${height - paddingY} L ${points[0]!.x},${height - paddingY} Z`
+      : "";
 
   const formatHours = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
@@ -60,9 +63,7 @@ export function FocusChart({ period }: { period: Period }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-2 z-10">
         <div className="flex items-center gap-2">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-            Focus Time
-          </h2>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">Focus Time</h2>
           <Info className="h-3.5 w-3.5 text-zinc-600" />
         </div>
       </div>
@@ -93,7 +94,7 @@ export function FocusChart({ period }: { period: Period }) {
             return (
               <g key={val}>
                 <text x="0" y={y + 4} fill="#52525b" fontSize="11" fontWeight="500">
-                  {val === 5 ? `${Math.ceil(maxVal)}h` : `${Math.round(val * (maxVal/5))}h`}
+                  {val === 5 ? `${Math.ceil(maxVal)}h` : `${Math.round(val * (maxVal / 5))}h`}
                 </text>
                 <line
                   x1={paddingX - 10}
@@ -137,7 +138,7 @@ export function FocusChart({ period }: { period: Period }) {
           {chartData.map((d, i) => (
             <text
               key={i}
-              x={points[i].x}
+              x={points[i]?.x ?? 0}
               y={height}
               fill="#71717a"
               fontSize="11"
@@ -158,7 +159,9 @@ export function FocusChart({ period }: { period: Period }) {
         </div>
         <div className="flex flex-col border-l border-zinc-800/50 pl-4">
           <span className="text-[10px] text-zinc-500">Average / day</span>
-          <span className="text-lg font-bold text-white mt-0.5">{data ? formatHours(data.total / chartData.length) : "-"}</span>
+          <span className="text-lg font-bold text-white mt-0.5">
+            {data ? formatHours(data.total / chartData.length) : "-"}
+          </span>
         </div>
         <div className="flex flex-col border-l border-zinc-800/50 pl-4">
           <span className="text-[10px] text-zinc-500">Longest session</span>

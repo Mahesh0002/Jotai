@@ -3,7 +3,14 @@
 import { useState } from "react";
 import { X, ChevronLeft, ChevronRight, Calendar as CalendarIcon, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatFullDate, formatMonthYear, getDaysInMonth, getFirstDayOfMonth, addMonths, isSameDay } from "@/lib/date-utils";
+import {
+  formatFullDate,
+  formatMonthYear,
+  getDaysInMonth,
+  getFirstDayOfMonth,
+  addMonths,
+  isSameDay,
+} from "@/lib/date-utils";
 
 type CalendarSidebarProps = {
   currentDate: Date;
@@ -19,9 +26,11 @@ export function CalendarSidebar({ currentDate, setCurrentDate }: CalendarSidebar
   ]);
 
   const toggleCalendar = (index: number) => {
-    const newCals = [...calendars];
-    newCals[index].active = !newCals[index].active;
-    setCalendars(newCals);
+    setCalendars((current) =>
+      current.map((calendar, i) =>
+        i === index ? { ...calendar, active: !calendar.active } : calendar,
+      ),
+    );
   };
 
   const upcoming = [
@@ -55,9 +64,12 @@ export function CalendarSidebar({ currentDate, setCurrentDate }: CalendarSidebar
   const month = currentDate.getMonth();
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
-  
+
   const daysInPrevMonth = getDaysInMonth(year, month - 1);
-  const prevMonthDays = Array.from({ length: firstDay }, (_, i) => daysInPrevMonth - firstDay + i + 1);
+  const prevMonthDays = Array.from(
+    { length: firstDay },
+    (_, i) => daysInPrevMonth - firstDay + i + 1,
+  );
   const currentMonthDays = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const nextMonthDays = Array.from({ length: 42 - (firstDay + daysInMonth) }, (_, i) => i + 1);
 
@@ -95,14 +107,16 @@ export function CalendarSidebar({ currentDate, setCurrentDate }: CalendarSidebar
           <div>S</div>
         </div>
         <div className="grid grid-cols-7 gap-y-3 gap-x-1 text-center text-xs font-medium text-zinc-300">
-          {prevMonthDays.map(day => (
-            <div key={`prev-${day}`} className="opacity-30">{day}</div>
+          {prevMonthDays.map((day) => (
+            <div key={`prev-${day}`} className="opacity-30">
+              {day}
+            </div>
           ))}
-          {currentMonthDays.map(day => {
+          {currentMonthDays.map((day) => {
             const isToday = isSameDay(currentDate, new Date(year, month, day));
             return (
-              <div 
-                key={`cur-${day}`} 
+              <div
+                key={`cur-${day}`}
                 onClick={() => setCurrentDate(new Date(year, month, day))}
                 className={`cursor-pointer hover:text-white transition-colors ${isToday ? "flex h-6 w-6 items-center justify-center rounded-full bg-purple-600 text-white mx-auto shadow-glow" : ""}`}
               >
@@ -110,8 +124,10 @@ export function CalendarSidebar({ currentDate, setCurrentDate }: CalendarSidebar
               </div>
             );
           })}
-          {nextMonthDays.map(day => (
-            <div key={`next-${day}`} className="opacity-30">{day}</div>
+          {nextMonthDays.map((day) => (
+            <div key={`next-${day}`} className="opacity-30">
+              {day}
+            </div>
           ))}
         </div>
       </div>

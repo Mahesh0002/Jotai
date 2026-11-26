@@ -1,5 +1,5 @@
 import React from "react";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/card";
 import { useHabitAnalytics } from "@/hooks/useHabits";
 import { ArrowRight } from "lucide-react";
 
@@ -16,7 +16,7 @@ export function TopHabitsWidget() {
     );
   }
 
-  // The backend already returns `topHabits` in the analytics payload with a mock completionRate
+  // Computed locally from stored habit completion records.
   const topHabits = analytics.topHabits || [];
 
   return (

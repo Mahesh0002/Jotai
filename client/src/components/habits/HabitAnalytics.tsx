@@ -1,5 +1,5 @@
 import React from "react";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/card";
 import { useHabitAnalytics } from "@/hooks/useHabits";
 import { Target, TrendingUp, Flame, Calendar as CalendarIcon } from "lucide-react";
 
@@ -82,7 +82,7 @@ export function HabitAnalytics({ fullView = false }: { fullView?: boolean }) {
       </Card>
 
       {/* Heatmap (only shown in full view or if explicitly desired) */}
-      {(fullView || true) && (
+      {fullView || analytics ? (
         <Card className="p-6">
           <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500 mb-6 flex items-center gap-2">
             <CalendarIcon className="h-4 w-4" /> Activity Heatmap (Last 30 Days)
@@ -107,7 +107,7 @@ export function HabitAnalytics({ fullView = false }: { fullView?: boolean }) {
             })}
           </div>
         </Card>
-      )}
+      ) : null}
     </div>
   );
 }

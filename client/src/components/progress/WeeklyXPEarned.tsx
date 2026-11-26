@@ -27,9 +27,9 @@ export function WeeklyXPEarned({ period }: { period: Period }) {
     displayData = Array.from({ length: numDays }, (_, i) => {
       const d = subDays(new Date(), numDays - 1 - i);
       return {
-        date: d.toISOString().split("T")[0],
+        date: d.toISOString().split("T")[0] ?? "",
         day: format(d, "EEE"),
-        xp: 0
+        xp: 0,
       };
     });
   }
@@ -38,7 +38,7 @@ export function WeeklyXPEarned({ period }: { period: Period }) {
   // Let's just slice last 7 days if there are too many elements, or scale it.
   // The UI is designed for 7 days. If localPeriod === 'month', let's just show last 14 days or just keep 7.
   // The user requested removing mock data.
-  const chartData = displayData.slice(-7); 
+  const chartData = displayData.slice(-7);
   const maxVal = Math.max(...chartData.map((d) => d.xp), 100); // minimum 100 to avoid div by 0
 
   const total = data?.reduce((acc, curr) => acc + curr.xp, 0) || 0;
@@ -57,7 +57,9 @@ export function WeeklyXPEarned({ period }: { period: Period }) {
 
       <div className="flex items-end gap-2 mb-8">
         <Sparkles className="h-5 w-5 text-amber-400 mb-1" />
-        <span className="text-3xl font-light text-white leading-none">{total.toLocaleString()}</span>
+        <span className="text-3xl font-light text-white leading-none">
+          {total.toLocaleString()}
+        </span>
         <span className="text-xs font-medium text-amber-500 mb-1 tracking-wider">XP</span>
       </div>
 
@@ -65,7 +67,7 @@ export function WeeklyXPEarned({ period }: { period: Period }) {
       <div className="flex-1 flex items-end justify-between px-2 pb-2 mt-auto">
         {chartData.map((item, i) => {
           const heightPct = (item.xp / maxVal) * 100;
-          
+
           return (
             <div key={i} className="flex flex-col items-center gap-2 w-full">
               <span className="text-[10px] font-bold text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -17,7 +17,12 @@ interface ProgressHeaderProps {
   setActiveTab: (t: string) => void;
 }
 
-export function ProgressHeader({ period, setPeriod, activeTab, setActiveTab }: ProgressHeaderProps) {
+export function ProgressHeader({
+  period,
+  setPeriod,
+  activeTab,
+  setActiveTab,
+}: ProgressHeaderProps) {
   const tabs = ["Overview", "Focus", "Habits", "Goals"];
   const [kpiData, setKpiData] = useState<AnalyticsKPIs | null>(null);
 
@@ -93,7 +98,7 @@ export function ProgressHeader({ period, setPeriod, activeTab, setActiveTab }: P
     today: "Today",
     week: "This week",
     month: "This month",
-    year: "This year"
+    year: "This year",
   }[period];
 
   return (
@@ -116,10 +121,30 @@ export function ProgressHeader({ period, setPeriod, activeTab, setActiveTab }: P
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40 bg-zinc-900 border-zinc-800">
-              <DropdownMenuItem onClick={() => setPeriod("today")} className="text-xs text-zinc-300 hover:bg-zinc-800 focus:bg-zinc-800">Today</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setPeriod("week")} className="text-xs text-zinc-300 hover:bg-zinc-800 focus:bg-zinc-800">This week</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setPeriod("month")} className="text-xs text-zinc-300 hover:bg-zinc-800 focus:bg-zinc-800">This month</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setPeriod("year")} className="text-xs text-zinc-300 hover:bg-zinc-800 focus:bg-zinc-800">This year</DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setPeriod("today")}
+                className="text-xs text-zinc-300 hover:bg-zinc-800 focus:bg-zinc-800"
+              >
+                Today
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setPeriod("week")}
+                className="text-xs text-zinc-300 hover:bg-zinc-800 focus:bg-zinc-800"
+              >
+                This week
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setPeriod("month")}
+                className="text-xs text-zinc-300 hover:bg-zinc-800 focus:bg-zinc-800"
+              >
+                This month
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setPeriod("year")}
+                className="text-xs text-zinc-300 hover:bg-zinc-800 focus:bg-zinc-800"
+              >
+                This year
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 

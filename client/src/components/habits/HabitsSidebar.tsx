@@ -7,7 +7,7 @@ import {
   Sparkles,
   BookOpen,
 } from "lucide-react";
-import { Button } from "@/components/ui/Button"; // ensure casing matches your Button component
+import { Button } from "@/components/ui/button"; // ensure casing matches your Button component
 import { useHabitAnalytics, useHabits } from "@/hooks/useHabits";
 import { useMemo } from "react";
 

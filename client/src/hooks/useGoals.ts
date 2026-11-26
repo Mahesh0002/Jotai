@@ -28,8 +28,7 @@ export function useGoals() {
   });
 
   const updateGoal = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Goal> }) =>
-      goalsApi.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<Goal> }) => goalsApi.update(id, data),
     onMutate: async ({ id, data }) => {
       // Cancel in-flight requests
       await queryClient.cancelQueries({ queryKey });
@@ -45,7 +44,7 @@ export function useGoals() {
                 ...data,
                 // Keep status and completed in sync optimistically
                 status: data.status ?? (data.completed ? "completed" : g.status),
-                completed: data.completed ?? (data.status === "completed"),
+                completed: data.completed ?? data.status === "completed",
               }
             : g,
         );

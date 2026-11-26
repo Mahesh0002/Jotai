@@ -21,11 +21,11 @@ function ProgressRoute() {
   return (
     <div className="flex h-full w-full flex-col bg-zinc-950 overflow-hidden rounded-xl border border-zinc-800 shadow-sm">
       {/* Top Section: Header & KPIs */}
-      <ProgressHeader 
-        period={period} 
-        setPeriod={setPeriod} 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
+      <ProgressHeader
+        period={period}
+        setPeriod={setPeriod}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
       />
 
       {/* Main Grid Content */}

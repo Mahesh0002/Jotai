@@ -1,14 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  CalendarClock,
-  Check,
-  Inbox,
-  Lightbulb,
-  ListTree,
-  RefreshCw,
-  X,
-} from "lucide-react";
+import { CalendarClock, Check, Inbox, Lightbulb, ListTree, RefreshCw, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { proposalsApi, type Proposal } from "@/lib/api";
@@ -20,6 +12,7 @@ const TYPE_LABELS: Record<Proposal["type"], string> = {
   schedule_proposal: "Schedule plan",
   habit_insight: "Habit insight",
   subtask_suggestion: "Subtask suggestion",
+  workout_plan: "Workout plan",
 };
 
 function formatDate(value?: string): string {
@@ -199,9 +192,7 @@ export function ProposalInbox() {
   };
 
   const pending = proposals.filter((proposal) => proposal.status === "pending");
-  const history = proposals
-    .filter((proposal) => proposal.status !== "pending")
-    .slice(0, 20);
+  const history = proposals.filter((proposal) => proposal.status !== "pending").slice(0, 20);
 
   return (
     <div className="flex h-full w-full flex-col gap-6 overflow-y-auto custom-scrollbar rounded-xl border border-zinc-800 bg-zinc-950 p-6 shadow-sm md:p-8">
@@ -213,8 +204,8 @@ export function ProposalInbox() {
           </div>
           <h1 className="mt-2 text-2xl font-semibold text-white">Proposals</h1>
           <p className="mt-1 max-w-2xl text-xs leading-relaxed text-zinc-400">
-            Review suggestions from the Jōtai Runner. Accepting or rejecting records a decision
-            for the preference profile; it does not apply changes to your tasks or calendar
+            Review suggestions from the Jōtai Runner. Accepting or rejecting records a decision for
+            the preference profile; it does not apply changes to your tasks or calendar
             automatically.
           </p>
         </div>

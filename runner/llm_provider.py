@@ -1,8 +1,6 @@
 import abc
 from typing import Any, Callable, List, Optional
 
-from google import genai
-from google.genai import types
 from pydantic import BaseModel
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
@@ -14,9 +12,27 @@ class LLMResponse(BaseModel):
     tool_calls: Optional[List[Any]] = None
 
 
+class ToolSpec(BaseModel):
+    name: str
+    description: str
+    parameters_json_schema: dict
+    handler: Callable
+    requires_confirmation: bool = False
+
+
+class ToolCall(BaseModel):
+    name: str
+    args: dict
+    id: Optional[str] = None
+
+
 class BaseLLMProvider(abc.ABC):
     @abc.abstractmethod
     def generate(self, prompt: str, tools: Optional[List[Callable]] = None) -> LLMResponse:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def embed(self, text: str) -> List[float]:
         raise NotImplementedError
 
 
@@ -35,8 +51,13 @@ def is_rate_limit_error(exception: Exception) -> bool:
 
 class GeminiProvider(BaseLLMProvider):
     def __init__(self):
+        # Lazy import to avoid requiring google-genai in strict mode
+        from google import genai
+        from google.genai import types
+
         self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
         self.model = settings.GEMINI_MODEL
+        self._types = types
 
     @retry(
         retry=retry_if_exception(is_rate_limit_error),
@@ -44,7 +65,7 @@ class GeminiProvider(BaseLLMProvider):
         wait=wait_exponential(multiplier=1, min=2, max=60),
         reraise=True,
     )
-    def _call_gemini_with_retry(self, prompt: str, config: types.GenerateContentConfig) -> Any:
+    def _call_gemini_with_retry(self, prompt: str, config: Any) -> Any:
         return self.client.models.generate_content(
             model=self.model,
             contents=prompt,
@@ -52,11 +73,10 @@ class GeminiProvider(BaseLLMProvider):
         )
 
     def generate(self, prompt: str, tools: Optional[List[Callable]] = None) -> LLMResponse:
-        config = types.GenerateContentConfig(temperature=0.7)
+        config = self._types.GenerateContentConfig(temperature=0.7)
         if tools:
             config.tools = tools
-            # Hand-written tool loop: the agent code must see the calls.
-            config.automatic_function_calling = types.AutomaticFunctionCallingConfig(disable=True)
+            config.automatic_function_calling = self._types.AutomaticFunctionCallingConfig(disable=True)
 
         response = self._call_gemini_with_retry(prompt, config)
 
@@ -66,6 +86,10 @@ class GeminiProvider(BaseLLMProvider):
                 tool_calls=response.function_calls,
             )
         return LLMResponse(content=response.text or "")
+
+    def embed(self, text: str) -> List[float]:
+        # Gemini embeddings not implemented for local-only mode
+        raise NotImplementedError("Gemini embeddings not available in local mode")
 
 
 class StubProvider(BaseLLMProvider):
@@ -97,10 +121,19 @@ class StubProvider(BaseLLMProvider):
             return LLMResponse(content="UNKNOWN")
         return LLMResponse(content="[Stub Provider] No live model configured.")
 
+    def embed(self, text: str) -> List[float]:
+        # Return a dummy embedding for tests
+        return [0.0] * 768
+
 
 def get_llm_provider() -> BaseLLMProvider:
     if settings.LLM_PROVIDER == "gemini":
+        if settings.PRIVACY_MODE == "strict":
+            raise RuntimeError("Gemini provider disabled in PRIVACY_MODE=strict")
         return GeminiProvider()
+    if settings.LLM_PROVIDER == "ollama":
+        from runner.services.ollama_provider import get_ollama_provider
+        return get_ollama_provider()
     if settings.LLM_PROVIDER == "stub":
         return StubProvider()
     raise NotImplementedError(f"Provider {settings.LLM_PROVIDER} not implemented")

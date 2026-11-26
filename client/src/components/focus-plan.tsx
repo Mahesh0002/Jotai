@@ -107,9 +107,9 @@ export function FocusPlan({ onStartFocus }: FocusPlanProps) {
       await fetch(`${RUNNER_API_URL}/runner/trigger`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ intent: "plan" })
+        body: JSON.stringify({ intent: "plan" }),
       });
-      // The proposals state will update automatically if we refetch, 
+      // The proposals state will update automatically if we refetch,
       // but let's just trigger a refetch of pending proposals manually here
       const data = await proposalsApi.getAll("pending");
       setProposals(data);
@@ -123,7 +123,7 @@ export function FocusPlan({ onStartFocus }: FocusPlanProps) {
   const handleProposalAction = async (id: string, action: "accepted" | "rejected") => {
     try {
       await proposalsApi.updateStatus(id, action);
-      setProposals(prev => prev.filter(p => p._id !== id));
+      setProposals((prev) => prev.filter((p) => p._id !== id));
     } catch (err) {
       console.error("Proposal action failed", err);
     }
@@ -264,12 +264,7 @@ export function FocusPlan({ onStartFocus }: FocusPlanProps) {
             <Button variant="secondary" size="sm" onClick={() => setIsModalOpen(true)}>
               <Plus className="h-3.5 w-3.5 mr-1" /> Add Block
             </Button>
-            <Button 
-              variant="primary" 
-              size="sm" 
-              onClick={handleAutoPlan} 
-              disabled={isAutoPlanning}
-            >
+            <Button variant="primary" size="sm" onClick={handleAutoPlan} disabled={isAutoPlanning}>
               {isAutoPlanning ? "✦ Planning..." : "✦ Auto Plan"}
             </Button>
           </div>
@@ -287,17 +282,36 @@ export function FocusPlan({ onStartFocus }: FocusPlanProps) {
                 View inbox →
               </Link>
             </h3>
-            {proposals.map(p => (
-              <div key={p._id} className="bg-surface border border-primary/20 rounded-lg p-3 text-sm flex justify-between items-center">
+            {proposals.map((p) => (
+              <div
+                key={p._id}
+                className="bg-surface border border-primary/20 rounded-lg p-3 text-sm flex justify-between items-center"
+              >
                 <div>
-                  <div className="font-semibold">{p.type === 'schedule_proposal' ? 'Schedule Optimization' : 'Habit Insight'}</div>
+                  <div className="font-semibold">
+                    {p.type === "schedule_proposal" ? "Schedule Optimization" : "Habit Insight"}
+                  </div>
                   <div className="text-text-secondary text-xs mt-1">
-                    {p.type === 'schedule_proposal' ? `${p.data?.blocks?.length || 0} blocks proposed.` : p.data?.title}
+                    {p.type === "schedule_proposal"
+                      ? `${p.data?.blocks?.length || 0} blocks proposed.`
+                      : p.data?.title}
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => handleProposalAction(p._id, 'rejected')}>Reject</Button>
-                  <Button size="sm" variant="primary" onClick={() => handleProposalAction(p._id, 'accepted')}>Accept</Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => handleProposalAction(p._id, "rejected")}
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => handleProposalAction(p._id, "accepted")}
+                  >
+                    Accept
+                  </Button>
                 </div>
               </div>
             ))}

@@ -1,6 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { BACKEND_API_URL, RUNNER_API_URL } from "@/lib/config";
-import { Music, Play, Pause, SkipForward, SkipBack, Volume2, ExternalLink, RefreshCw, Loader2, Unlink, List } from "lucide-react";
+import {
+  Music,
+  Play,
+  Pause,
+  SkipForward,
+  SkipBack,
+  Volume2,
+  ExternalLink,
+  RefreshCw,
+  Loader2,
+  Unlink,
+  List,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -20,9 +32,10 @@ const API = `${BACKEND_API_URL}/integrations`;
 // Spotify Client ID — set in .env as VITE_SPOTIFY_CLIENT_ID
 const CLIENT_ID = (import.meta.env as any).VITE_SPOTIFY_CLIENT_ID || "";
 // Spotify requires a loopback IP (not 'localhost') for the redirect URI
-const REDIRECT_URI = typeof window !== "undefined"
-  ? `${window.location.protocol}//${window.location.hostname === "localhost" ? "127.0.0.1" : window.location.hostname}:${window.location.port}/integrations`
-  : "http://127.0.0.1:5173/integrations";
+const REDIRECT_URI =
+  typeof window !== "undefined"
+    ? `${window.location.protocol}//${window.location.hostname === "localhost" ? "127.0.0.1" : window.location.hostname}:${window.location.port}/integrations`
+    : "http://127.0.0.1:5173/integrations";
 
 type NowPlaying = {
   isPlaying: boolean;
@@ -35,14 +48,24 @@ type NowPlaying = {
   trackUrl: string;
 };
 
-type Playlist = { id: string; name: string; images: { url: string }[]; tracks: { total: number }; external_urls: { spotify: string } };
+type Playlist = {
+  id: string;
+  name: string;
+  images: { url: string }[];
+  tracks: { total: number };
+  external_urls: { spotify: string };
+};
 
 async function spotifyFetch(path: string, options: RequestInit = {}): Promise<any> {
   const token = await getValidSpotifyToken();
   if (!token) throw new Error("No valid Spotify token");
   const res = await fetch(`${API}${path}`, {
     ...options,
-    headers: { ...(options.headers || {}), "x-spotify-token": token, "Content-Type": "application/json" },
+    headers: {
+      ...(options.headers || {}),
+      "x-spotify-token": token,
+      "Content-Type": "application/json",
+    },
   });
   return res.json();
 }
@@ -54,12 +77,19 @@ function msToTime(ms: number) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export function SpotifyPanel({ onConnectionChange }: { onConnectionChange?: (connected: boolean) => void }) {
+export function SpotifyPanel({
+  onConnectionChange,
+}: {
+  onConnectionChange?: (connected: boolean) => void;
+}) {
   const [connected, setConnected] = useState(isSpotifyConnected());
   const [loading, setLoading] = useState(false);
   const [nowPlaying, setNowPlaying] = useState<NowPlaying | null>(null);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [profile, setProfile] = useState<{ display_name: string; images: { url: string }[] } | null>(null);
+  const [profile, setProfile] = useState<{
+    display_name: string;
+    images: { url: string }[];
+  } | null>(null);
   const [activeTab, setActiveTab] = useState<"now" | "playlists">("now");
   const [syncing, setSyncing] = useState(false);
 
@@ -83,7 +113,12 @@ export function SpotifyPanel({ onConnectionChange }: { onConnectionChange?: (con
         const res = await fetch(`${API}/spotify/token`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code, codeVerifier: verifier, redirectUri: REDIRECT_URI, clientId: CLIENT_ID }),
+          body: JSON.stringify({
+            code,
+            codeVerifier: verifier,
+            redirectUri: REDIRECT_URI,
+            clientId: CLIENT_ID,
+          }),
         });
         const data = await res.json();
         if (data.success && data.data.access_token) {
@@ -153,7 +188,9 @@ export function SpotifyPanel({ onConnectionChange }: { onConnectionChange?: (con
       } else {
         setNowPlaying(null);
       }
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   }, [connected]);
 
   const fetchProfile = useCallback(async () => {
@@ -161,7 +198,9 @@ export function SpotifyPanel({ onConnectionChange }: { onConnectionChange?: (con
     try {
       const data = await spotifyFetch("/spotify/profile");
       if (data.success) setProfile(data.data);
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   }, [connected]);
 
   const fetchPlaylists = useCallback(async () => {
@@ -176,12 +215,18 @@ export function SpotifyPanel({ onConnectionChange }: { onConnectionChange?: (con
       // Merge, de-dupe by id
       const merged = [...fp, ...my];
       const seen = new Set();
-      setPlaylists(merged.filter((p: any) => {
-        if (!p || seen.has(p.id)) return false;
-        seen.add(p.id);
-        return true;
-      }).slice(0, 10));
-    } catch {}
+      setPlaylists(
+        merged
+          .filter((p: any) => {
+            if (!p || seen.has(p.id)) return false;
+            seen.add(p.id);
+            return true;
+          })
+          .slice(0, 10),
+      );
+    } catch {
+      /* ignore */
+    }
   }, [connected]);
 
   useEffect(() => {
@@ -222,12 +267,17 @@ export function SpotifyPanel({ onConnectionChange }: { onConnectionChange?: (con
         <div>
           <h3 className="text-lg font-semibold text-white mb-2">Connect Spotify</h3>
           <p className="text-sm text-zinc-400 max-w-xs">
-            Link your Spotify account to control playback, see what's playing, and get focus playlists — all from Jōtai.
+            Link your Spotify account to control playback, see what's playing, and get focus
+            playlists — all from Jōtai.
           </p>
         </div>
         {!CLIENT_ID && (
           <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-[11px] text-amber-400 max-w-xs text-left">
-            Add <code className="bg-zinc-800 px-1 rounded">VITE_SPOTIFY_CLIENT_ID=your_id</code> to <code className="bg-zinc-800 px-1 rounded">client/.env</code>, then add <code className="bg-zinc-800 px-1 rounded">http://127.0.0.1:5173/integrations</code> as a Redirect URI in your Spotify Developer App. Use <strong>127.0.0.1</strong>, not localhost.
+            Add <code className="bg-zinc-800 px-1 rounded">VITE_SPOTIFY_CLIENT_ID=your_id</code> to{" "}
+            <code className="bg-zinc-800 px-1 rounded">client/.env</code>, then add{" "}
+            <code className="bg-zinc-800 px-1 rounded">http://127.0.0.1:5173/integrations</code> as
+            a Redirect URI in your Spotify Developer App. Use <strong>127.0.0.1</strong>, not
+            localhost.
           </div>
         )}
         <Button
@@ -235,7 +285,11 @@ export function SpotifyPanel({ onConnectionChange }: { onConnectionChange?: (con
           disabled={loading}
           className="bg-emerald-500 hover:bg-emerald-400 text-black font-semibold px-8 py-2.5 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.3)]"
         >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Music className="h-4 w-4 mr-2" />}
+          {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <Music className="h-4 w-4 mr-2" />
+          )}
           Connect with Spotify
         </Button>
       </div>
@@ -248,7 +302,11 @@ export function SpotifyPanel({ onConnectionChange }: { onConnectionChange?: (con
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {profile?.images?.[0]?.url ? (
-            <img src={profile.images[0].url} className="h-9 w-9 rounded-full object-cover" alt="Spotify avatar" />
+            <img
+              src={profile.images[0].url}
+              className="h-9 w-9 rounded-full object-cover"
+              alt="Spotify avatar"
+            />
           ) : (
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
               <Music className="h-5 w-5" />
@@ -263,10 +321,21 @@ export function SpotifyPanel({ onConnectionChange }: { onConnectionChange?: (con
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-500" onClick={syncNow} disabled={syncing}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-zinc-500"
+            onClick={syncNow}
+            disabled={syncing}
+          >
             <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-500 hover:text-red-400" onClick={disconnect}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-zinc-500 hover:text-red-400"
+            onClick={disconnect}
+          >
             <Unlink className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -279,7 +348,9 @@ export function SpotifyPanel({ onConnectionChange }: { onConnectionChange?: (con
             key={t}
             onClick={() => setActiveTab(t)}
             className={`pb-2.5 text-[11px] font-semibold uppercase tracking-wider transition-colors ${
-              activeTab === t ? "text-emerald-400 border-b-2 border-emerald-400" : "text-zinc-500 hover:text-zinc-300"
+              activeTab === t
+                ? "text-emerald-400 border-b-2 border-emerald-400"
+                : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
             {t === "now" ? "Now Playing" : "Playlists"}
@@ -289,7 +360,12 @@ export function SpotifyPanel({ onConnectionChange }: { onConnectionChange?: (con
 
       <AnimatePresence mode="wait">
         {activeTab === "now" && (
-          <motion.div key="now" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+          <motion.div
+            key="now"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+          >
             {nowPlaying ? (
               <div className="flex flex-col gap-4">
                 {/* Album art + track info */}
@@ -300,13 +376,20 @@ export function SpotifyPanel({ onConnectionChange }: { onConnectionChange?: (con
                     className="h-16 w-16 rounded-lg object-cover shadow-[0_0_20px_rgba(0,0,0,0.5)]"
                   />
                   <div className="flex-1 min-w-0">
-                    <a href={nowPlaying.trackUrl} target="_blank" rel="noreferrer" className="group flex items-center gap-1">
+                    <a
+                      href={nowPlaying.trackUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="group flex items-center gap-1"
+                    >
                       <p className="text-sm font-semibold text-white truncate group-hover:text-emerald-400 transition-colors">
                         {nowPlaying.trackName}
                       </p>
                       <ExternalLink className="h-3 w-3 text-zinc-600 group-hover:text-emerald-400 shrink-0" />
                     </a>
-                    <p className="text-[11px] text-zinc-400 truncate mt-0.5">{nowPlaying.artistName}</p>
+                    <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                      {nowPlaying.artistName}
+                    </p>
                     <p className="text-[10px] text-zinc-600 truncate">{nowPlaying.albumName}</p>
                   </div>
                 </div>
@@ -328,16 +411,30 @@ export function SpotifyPanel({ onConnectionChange }: { onConnectionChange?: (con
 
                 {/* Controls */}
                 <div className="flex items-center justify-center gap-3">
-                  <Button variant="ghost" size="icon" className="h-9 w-9 text-zinc-400 hover:text-white" onClick={() => control("previous")}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 text-zinc-400 hover:text-white"
+                    onClick={() => control("previous")}
+                  >
                     <SkipBack className="h-4 w-4" />
                   </Button>
                   <Button
                     className="h-11 w-11 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black shadow-[0_0_15px_rgba(16,185,129,0.4)]"
                     onClick={() => control(nowPlaying.isPlaying ? "pause" : "play")}
                   >
-                    {nowPlaying.isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                    {nowPlaying.isPlaying ? (
+                      <Pause className="h-5 w-5" />
+                    ) : (
+                      <Play className="h-5 w-5" />
+                    )}
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 text-zinc-400 hover:text-white" onClick={() => control("next")}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 text-zinc-400 hover:text-white"
+                    onClick={() => control("next")}
+                  >
                     <SkipForward className="h-4 w-4" />
                   </Button>
                 </div>
@@ -353,7 +450,12 @@ export function SpotifyPanel({ onConnectionChange }: { onConnectionChange?: (con
         )}
 
         {activeTab === "playlists" && (
-          <motion.div key="playlists" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+          <motion.div
+            key="playlists"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+          >
             <div className="flex flex-col gap-2 max-h-80 overflow-y-auto custom-scrollbar pr-1">
               {playlists.length === 0 ? (
                 <div className="flex flex-col items-center py-8 gap-2 text-center">
@@ -370,14 +472,20 @@ export function SpotifyPanel({ onConnectionChange }: { onConnectionChange?: (con
                     className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/30 p-3 hover:bg-zinc-900/60 hover:border-emerald-500/20 transition-all group"
                   >
                     {pl.images?.[0]?.url ? (
-                      <img src={pl.images[0].url} className="h-10 w-10 rounded object-cover shrink-0" alt={pl.name} />
+                      <img
+                        src={pl.images[0].url}
+                        className="h-10 w-10 rounded object-cover shrink-0"
+                        alt={pl.name}
+                      />
                     ) : (
                       <div className="h-10 w-10 rounded bg-zinc-800 flex items-center justify-center shrink-0">
                         <Music className="h-4 w-4 text-zinc-600" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-medium text-zinc-200 truncate group-hover:text-emerald-400 transition-colors">{pl.name}</p>
+                      <p className="text-[11px] font-medium text-zinc-200 truncate group-hover:text-emerald-400 transition-colors">
+                        {pl.name}
+                      </p>
                       <p className="text-[10px] text-zinc-600">{pl.tracks?.total} tracks</p>
                     </div>
                     <ExternalLink className="h-3 w-3 text-zinc-700 group-hover:text-emerald-400 shrink-0" />

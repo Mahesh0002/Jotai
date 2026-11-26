@@ -1,265 +1,228 @@
-const FocusBlock = require('../models/FocusBlock');
-const Task = require('../models/Task');
-const HabitCompletion = require('../models/HabitCompletion');
-const Habit = require('../models/Habit');
-const Goal = require('../models/Goal'); // Assuming Goal exists, if not we'll mock it or catch error
+const { all } = require('../db');
 
-const getRange = (req) => {
-    let { period, startDate, endDate } = req.query;
-    if (startDate && endDate) {
-        return { start: new Date(startDate), end: new Date(endDate) };
-    }
-    const now = new Date();
-    let start = new Date();
-    start.setHours(0,0,0,0); // start of today
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    if (period === 'month') {
-        start.setMonth(now.getMonth() - 1);
-    } else if (period === 'year') {
-        start.setFullYear(now.getFullYear() - 1);
-    } else if (period === 'today') {
-        // already start of today
-    } else {
-        // default week
-        start.setDate(now.getDate() - 6); // 7 days inclusive
-    }
-    return { start, end: now };
-};
+/** Resolve the requested date window as ISO strings for SQLite comparisons. */
+function getRange(req) {
+  const { period, startDate, endDate } = req.query;
+  const now = new Date();
+  if (startDate && endDate) {
+    return { start: new Date(startDate).toISOString(), end: new Date(endDate).toISOString() };
+  }
+
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  if (period === 'month') start.setMonth(start.getMonth() - 1);
+  else if (period === 'year') start.setFullYear(start.getFullYear() - 1);
+  else if (period === 'today') {
+    // already start of today
+  } else start.setDate(start.getDate() - 6);
+
+  return { start: start.toISOString(), end: now.toISOString() };
+}
+
+function dayKeys(start, end) {
+  const keys = [];
+  const cursor = new Date(start);
+  cursor.setUTCHours(0, 0, 0, 0);
+  const last = new Date(end);
+  last.setUTCHours(0, 0, 0, 0);
+  while (cursor <= last && keys.length < 400) {
+    keys.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return keys;
+}
+
+function dayLabel(date) {
+  return DAY_NAMES[new Date(`${date}T00:00:00Z`).getUTCDay()];
+}
+
+function categorize(block) {
+  const text = `${block.title || ''} ${block.source || ''}`.toLowerCase();
+  if (/break|rest/.test(text)) return 'breaks';
+  if (/meeting|admin|call/.test(text)) return 'meetings';
+  if (/creative|project|design|build/.test(text)) return 'projectWork';
+  return 'deepWork';
+}
 
 // GET /api/v1/analytics/focus
-exports.getFocusAnalytics = async (req, res) => {
-    try {
-        const { start, end } = getRange(req);
-        
-        const blocks = await FocusBlock.find({
-            startTime: { $gte: start, $lte: end },
-            status: 'completed'
-        });
+exports.getFocusAnalytics = (req, res, next) => {
+  try {
+    const userId = req.userId || 'local_user';
+    const { start, end } = getRange(req);
+    const blocks = all(
+      `SELECT * FROM focus_blocks
+       WHERE user_id = ? AND status = 'completed' AND start_time >= ? AND start_time <= ?`,
+      [userId, start, end]
+    );
 
-        let deepWork = 0;
-        let projectWork = 0;
-        let meetings = 0;
-        let breaks = 0;
-
-        const focusByDay = {};
-        
-        let d = new Date(start);
-        while (d <= end) {
-            focusByDay[d.toISOString().split('T')[0]] = 0;
-            d.setDate(d.getDate() + 1);
-        }
-
-        blocks.forEach(b => {
-            const actualSeconds = b.elapsedSeconds || (b.durationMinutes * 60);
-            
-            if (['deep_work', 'study', 'reading'].includes(b.type)) deepWork += actualSeconds;
-            else if (['creative', 'custom'].includes(b.type)) projectWork += actualSeconds;
-            else if (['admin'].includes(b.type)) meetings += actualSeconds;
-            else if (['break'].includes(b.type)) breaks += actualSeconds;
-            else deepWork += actualSeconds; // default
-
-            const dateStr = b.startTime.toISOString().split('T')[0];
-            if (focusByDay[dateStr] !== undefined) {
-                focusByDay[dateStr] += actualSeconds;
-            } else {
-                focusByDay[dateStr] = actualSeconds;
-            }
-        });
-
-        const total = deepWork + projectWork + meetings + breaks;
-
-        const focusByDayArray = Object.keys(focusByDay).sort().map(date => {
-            const dateObj = new Date(date);
-            const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-            return {
-                date,
-                day: days[dateObj.getDay()],
-                focusSeconds: focusByDay[date]
-            };
-        });
-
-        res.json({
-            success: true,
-            data: {
-                deepWork,
-                projectWork,
-                meetings,
-                breaks,
-                total,
-                focusByDay: focusByDayArray
-            }
-        });
-
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
+    const totals = { deepWork: 0, projectWork: 0, meetings: 0, breaks: 0 };
+    const byDay = Object.fromEntries(dayKeys(start, end).map((day) => [day, 0]));
+    for (const block of blocks) {
+      const seconds = block.elapsed_seconds || 0;
+      totals[categorize(block)] += seconds;
+      const day = String(block.start_time).slice(0, 10);
+      byDay[day] = (byDay[day] || 0) + seconds;
     }
+
+    res.json({
+      success: true,
+      data: {
+        ...totals,
+        total: Object.values(totals).reduce((sum, value) => sum + value, 0),
+        focusByDay: Object.keys(byDay)
+          .sort()
+          .map((date) => ({ date, day: dayLabel(date), focusSeconds: byDay[date] })),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
 };
 
 // GET /api/v1/analytics/tasks
-exports.getTasksAnalytics = async (req, res) => {
-    try {
-        const { start, end } = getRange(req);
-        
-        // Find tasks due or completed in the range
-        const tasks = await Task.find({
-            $or: [
-                { dueDate: { $gte: start, $lte: end } },
-                { completedAt: { $gte: start, $lte: end } }
-            ]
-        }).populate('projectId');
+exports.getTasksAnalytics = (req, res, next) => {
+  try {
+    const userId = req.userId || 'local_user';
+    const { start, end } = getRange(req);
+    const tasks = all(
+      `SELECT t.status, t.project_id, p.name AS project_name
+       FROM tasks t LEFT JOIN projects p ON p.id = t.project_id
+       WHERE t.user_id = ?
+         AND ((t.due_date IS NOT NULL AND t.due_date >= ? AND t.due_date <= ?)
+           OR (t.completed_at IS NOT NULL AND t.completed_at >= ? AND t.completed_at <= ?))`,
+      [userId, start, end, start, end]
+    );
 
-        const groups = {};
-
-        tasks.forEach(t => {
-            const catName = t.projectId ? t.projectId.name : 'Personal';
-            if (!groups[catName]) {
-                groups[catName] = { total: 0, completed: 0 };
-            }
-            groups[catName].total += 1;
-            if (t.status === 'completed') {
-                groups[catName].completed += 1;
-            }
-        });
-
-        // Format for frontend
-        const data = Object.keys(groups).map(key => ({
-            id: key, // Using name as ID for simplicity
-            label: key,
-            completed: groups[key].completed,
-            total: groups[key].total,
-            percent: Math.round((groups[key].completed / groups[key].total) * 100)
-        })).sort((a, b) => b.percent - a.percent); // sort by completion rate
-
-        // Calculate "All Tasks"
-        const allCompleted = data.reduce((sum, item) => sum + item.completed, 0);
-        const allTotal = data.reduce((sum, item) => sum + item.total, 0);
-        const allPercent = allTotal > 0 ? Math.round((allCompleted / allTotal) * 100) : 0;
-
-        res.json({
-            success: true,
-            data: {
-                all: { label: 'All Tasks', completed: allCompleted, total: allTotal, percent: allPercent },
-                groups: data
-            }
-        });
-
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
+    const groups = {};
+    for (const task of tasks) {
+      const label = task.project_name || 'Personal';
+      const group = (groups[label] ||= { total: 0, completed: 0 });
+      group.total += 1;
+      if (task.status === 'completed') group.completed += 1;
     }
+
+    const data = Object.entries(groups)
+      .map(([label, group]) => ({
+        id: label,
+        label,
+        completed: group.completed,
+        total: group.total,
+        percent: group.total ? Math.round((group.completed / group.total) * 100) : 0,
+      }))
+      .sort((a, b) => b.percent - a.percent);
+
+    const allCompleted = data.reduce((sum, item) => sum + item.completed, 0);
+    const allTotal = data.reduce((sum, item) => sum + item.total, 0);
+    res.json({
+      success: true,
+      data: {
+        all: {
+          label: 'All Tasks',
+          completed: allCompleted,
+          total: allTotal,
+          percent: allTotal ? Math.round((allCompleted / allTotal) * 100) : 0,
+        },
+        groups: data,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
 };
 
 // GET /api/v1/analytics/xp
-exports.getXpAnalytics = async (req, res) => {
-    try {
-        const { start, end } = getRange(req);
-        
-        const blocks = await FocusBlock.find({ endTime: { $gte: start, $lte: end }, status: 'completed' });
-        const tasks = await Task.find({ completedAt: { $gte: start, $lte: end }, status: 'completed' });
-        const habits = await HabitCompletion.find({ completedAt: { $gte: start, $lte: end }, status: 'completed' });
+exports.getXpAnalytics = (req, res, next) => {
+  try {
+    const userId = req.userId || 'local_user';
+    const { start, end } = getRange(req);
+    const xpByDay = Object.fromEntries(dayKeys(start, end).map((day) => [day, 0]));
+    const add = (timestamp, xp) => {
+      if (!timestamp) return;
+      const day = String(timestamp).slice(0, 10);
+      if (day in xpByDay) xpByDay[day] += xp || 0;
+    };
 
-        const xpByDay = {};
-        
-        let d = new Date(start);
-        while (d <= end) {
-            xpByDay[d.toISOString().split('T')[0]] = 0;
-            d.setDate(d.getDate() + 1);
-        }
-
-        const addXP = (dateStr, xp) => {
-            if (!dateStr) return;
-            const day = dateStr.split('T')[0];
-            if (xpByDay[day] !== undefined) {
-                xpByDay[day] += (xp || 0);
-            } else {
-                xpByDay[day] = (xp || 0);
-            }
-        };
-
-        blocks.forEach(b => addXP(b.endTime.toISOString(), b.xpReward));
-        tasks.forEach(t => addXP(t.completedAt.toISOString(), t.xpReward));
-        habits.forEach(h => addXP(h.completedAt.toISOString(), h.xpAwarded));
-
-        // Format for frontend
-        const data = Object.keys(xpByDay).sort().map(date => {
-            // Convert to Mon, Tue, etc.
-            const dateObj = new Date(date);
-            const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-            return {
-                date,
-                day: days[dateObj.getDay()],
-                xp: xpByDay[date]
-            };
-        });
-
-        res.json({
-            success: true,
-            data
-        });
-
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
+    for (const block of all(
+      `SELECT end_time, elapsed_seconds FROM focus_blocks
+       WHERE user_id = ? AND status = 'completed' AND end_time >= ? AND end_time <= ?`,
+      [userId, start, end]
+    )) {
+      add(block.end_time, Math.round((block.elapsed_seconds || 0) / 60));
     }
+    for (const task of all(
+      `SELECT completed_at, xp_reward FROM tasks
+       WHERE user_id = ? AND status = 'completed' AND completed_at >= ? AND completed_at <= ?`,
+      [userId, start, end]
+    )) {
+      add(task.completed_at, task.xp_reward);
+    }
+    for (const habit of all(
+      `SELECT completed_at FROM habit_completions
+       WHERE user_id = ? AND status = 'completed' AND completed_at >= ? AND completed_at <= ?`,
+      [userId, start, end]
+    )) {
+      add(habit.completed_at, 10);
+    }
+
+    res.json({
+      success: true,
+      data: Object.keys(xpByDay)
+        .sort()
+        .map((date) => ({ date, day: dayLabel(date), xp: xpByDay[date] })),
+    });
+  } catch (err) {
+    next(err);
+  }
 };
 
 // GET /api/v1/analytics/kpis
-exports.getKpis = async (req, res) => {
-    try {
-        const { start, end } = getRange(req);
-        
-        // 1. Completion Rate
-        const tasks = await Task.find({
-            $or: [
-                { dueDate: { $gte: start, $lte: end } },
-                { completedAt: { $gte: start, $lte: end } }
-            ]
-        });
-        const completedTasks = tasks.filter(t => t.status === 'completed').length;
-        const completionRate = tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0;
+exports.getKpis = (req, res, next) => {
+  try {
+    const userId = req.userId || 'local_user';
+    const { start, end } = getRange(req);
+    const tasks = all(
+      `SELECT status, xp_reward FROM tasks
+       WHERE user_id = ?
+         AND ((due_date IS NOT NULL AND due_date >= ? AND due_date <= ?)
+           OR (completed_at IS NOT NULL AND completed_at >= ? AND completed_at <= ?))`,
+      [userId, start, end, start, end]
+    );
+    const blocks = all(
+      `SELECT elapsed_seconds, start_time FROM focus_blocks
+       WHERE user_id = ? AND status = 'completed' AND start_time >= ? AND start_time <= ?`,
+      [userId, start, end]
+    );
+    const habitCounts = all(
+      `SELECT habit_id, COUNT(*) AS count FROM habit_completions
+       WHERE user_id = ? AND status = 'completed' GROUP BY habit_id`,
+      [userId]
+    );
+    const activeGoals = all(`SELECT COUNT(*) AS count FROM goals WHERE user_id = ? AND status = 'active'`, [userId])[0].count;
 
-        // 2. Focus Time
-        const blocks = await FocusBlock.find({ startTime: { $gte: start, $lte: end }, status: 'completed' });
-        let focusTimeSeconds = 0;
-        blocks.forEach(b => {
-            focusTimeSeconds += b.elapsedSeconds || (b.durationMinutes * 60);
-        });
+    const completedTasks = tasks.filter((task) => task.status === 'completed').length;
+    const focusTimeSeconds = blocks.reduce((sum, block) => sum + (block.elapsed_seconds || 0), 0);
+    const totalXp =
+      tasks.filter((task) => task.status === 'completed').reduce((sum, task) => sum + (task.xp_reward || 0), 0) +
+      blocks.reduce((sum, block) => sum + Math.round((block.elapsed_seconds || 0) / 60), 0) +
+      all(
+        `SELECT COUNT(*) AS count FROM habit_completions
+         WHERE user_id = ? AND status = 'completed' AND completed_at >= ? AND completed_at <= ?`,
+        [userId, start, end]
+      )[0].count * 10;
 
-        // 3. Best Streak (global across all active habits)
-        const habits = await Habit.find({ status: 'active' });
-        const allComps = await HabitCompletion.find({ status: 'completed' });
-        let bestStreak = 0;
-        habits.forEach(h => {
-            const comps = allComps.filter(c => c.habitId.toString() === h._id.toString());
-            if (comps.length > bestStreak) bestStreak = comps.length;
-        });
-
-        // 4. Active Goals
-        let activeGoals = 0;
-        try {
-            activeGoals = await Goal.countDocuments({ status: 'active' });
-        } catch (e) {
-            activeGoals = 0; // If Goal model doesn't exist or isn't populated
-        }
-
-        // 5. Total XP
-        let totalXp = 0;
-        blocks.forEach(b => totalXp += (b.xpReward || 0));
-        tasks.filter(t => t.status === 'completed').forEach(t => totalXp += (t.xpReward || 0));
-        
-        const habitsInRange = await HabitCompletion.find({ completedAt: { $gte: start, $lte: end }, status: 'completed' });
-        habitsInRange.forEach(h => totalXp += (h.xpAwarded || 0));
-
-        res.json({
-            success: true,
-            data: {
-                completionRate: Math.round(completionRate * 10) / 10,
-                focusTimeSeconds,
-                bestStreak,
-                activeGoals,
-                totalXp
-            }
-        });
-
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+    res.json({
+      success: true,
+      data: {
+        completionRate: tasks.length ? Math.round((completedTasks / tasks.length) * 1000) / 10 : 0,
+        focusTimeSeconds,
+        bestStreak: habitCounts.reduce((max, row) => Math.max(max, row.count), 0),
+        activeGoals,
+        totalXp,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
 };

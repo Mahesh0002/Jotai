@@ -50,7 +50,7 @@ const integrations = [
   { name: "Trello", key: "trello", initial: "T", color: "text-blue-500" },
 ] as const;
 
-export function Sidebar({ onOpenIntegrations }: { onOpenIntegrations: () => void }) {
+export function Sidebar() {
   const location = useLocation();
   const { settings } = useSettings();
   const { data: summary } = useQuery({

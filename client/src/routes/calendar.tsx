@@ -12,7 +12,7 @@ export const Route = createFileRoute("/calendar")({
 });
 
 function CalendarRoute() {
-  const [currentDate, setCurrentDate] = useState(new Date(2024, 9, 8)); // Using mocked October 8, 2024 as default for continuity with mock data
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [activeView, setActiveView] = useState<"Day" | "Week" | "Month">("Week");
   const [isMounted, setIsMounted] = useState(false);
 
@@ -30,11 +30,11 @@ function CalendarRoute() {
 
   return (
     <div className="flex h-full w-full flex-col bg-zinc-950 overflow-hidden">
-      <CalendarHeader 
-        currentDate={currentDate} 
-        setCurrentDate={setCurrentDate} 
-        activeView={activeView} 
-        setActiveView={setActiveView} 
+      <CalendarHeader
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
+        activeView={activeView}
+        setActiveView={setActiveView}
       />
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-1 flex-col overflow-hidden border-t border-zinc-800">

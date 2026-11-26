@@ -86,14 +86,14 @@ export function CalendarHeader({
             </div>
           </div>
 
-          <Button 
+          <Button
             className="h-9 gap-2 rounded-md bg-purple-600 px-4 text-sm font-medium text-white hover:bg-purple-500 shadow-glow"
             onClick={() => alert("New Event modal coming soon!")}
           >
             <Plus className="h-4 w-4" /> New event
           </Button>
 
-          <Button 
+          <Button
             className="h-9 gap-2 rounded-md border border-purple-500/30 bg-purple-500/10 px-4 text-sm font-medium text-purple-300 hover:bg-purple-500/20"
             onClick={() => alert("AI Schedule feature coming soon!")}
           >

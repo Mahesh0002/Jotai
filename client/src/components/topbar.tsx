@@ -47,7 +47,12 @@ export function Topbar() {
 
         {/* Settings link */}
         <Link to="/settings">
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-foreground" aria-label="Settings">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-zinc-400 hover:text-foreground"
+            aria-label="Settings"
+          >
             <Settings className="size-4" />
           </Button>
         </Link>

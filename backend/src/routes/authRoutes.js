@@ -1,17 +1,18 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const bcrypt = require('bcryptjs');
 const config = require('../config');
+const { run, get } = require('../db');
 const ApiError = require('../utils/ApiError');
 
 const router = express.Router();
 const COOKIE = 'jotai_token';
 const MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+const LOCAL_USER_ID = 'local_user';
 
-function signToken(user) {
+function signToken(userId, username) {
   return jwt.sign(
-    { sub: user._id.toString(), username: user.username },
+    { sub: userId, username },
     config.jwtSecret,
     { expiresIn: '7d' },
   );
@@ -27,61 +28,57 @@ function setCookie(res, token) {
   });
 }
 
-function validate(body) {
-  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
-  const password = typeof body.password === 'string' ? body.password : '';
-  if (!email || !password) return { error: 'Email and password are required' };
-  if (password.length < 8) return { error: 'Password must be at least 8 characters' };
-  return { email, password };
-}
-
-router.post('/register', async (req, res, next) => {
-  try {
-    const { error, email, password } = validate(req.body || {});
-    if (error) return next(new ApiError(400, error));
-    if (await User.findOne({ email })) return next(new ApiError(400, 'Email already registered'));
-
-    const username =
-      (typeof req.body.username === 'string' && req.body.username.trim()) || email.split('@')[0];
-    const user = await User.create({
-      username,
-      email,
-      passwordHash: await bcrypt.hash(password, 10),
-    });
-
-    setCookie(res, signToken(user));
-    res.status(201).json({ success: true, data: { id: user._id, username, email } });
-  } catch (err) {
-    next(new ApiError(400, err.message));
-  }
-});
-
+// POST /api/v1/auth/login - username/password or passwordless local mode
 router.post('/login', async (req, res, next) => {
   try {
-    const { error, email, password } = validate(req.body || {});
-    if (error) return next(new ApiError(400, error));
+    const { username, password, email } = req.body || {};
 
-    const user = await User.findOne({ email });
-    if (!user || !user.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
-      return next(new ApiError(401, 'Invalid email or password'));
+    // If credentials provided, verify them
+    if ((username || email) && password) {
+      const user = get(
+        `SELECT * FROM users WHERE username = ? OR email = ?`,
+        [username || email, email || username]
+      );
+      if (!user || !user.password_hash) {
+        return res.status(401).json({ success: false, error: 'Invalid credentials' });
+      }
+      const valid = await bcrypt.compare(password, user.password_hash);
+      if (!valid) {
+        return res.status(401).json({ success: false, error: 'Invalid credentials' });
+      }
+      const token = signToken(user.id, user.username || user.display_name);
+      setCookie(res, token);
+      return res.json({ success: true, data: { id: user.id, username: user.username || user.display_name } });
     }
 
-    setCookie(res, signToken(user));
-    res.json({ success: true, data: { id: user._id, username: user.username, email } });
+    // Passwordless local mode (existing behavior)
+    const user = get(`SELECT * FROM users WHERE id = ?`, [LOCAL_USER_ID]);
+    if (!user) {
+      run(
+        `INSERT INTO users (id, display_name, username, email, chronotype, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+        [LOCAL_USER_ID, 'Local User', 'local', 'local@jotai.local', 'unknown', new Date().toISOString()]
+      );
+    }
+
+    const token = signToken(LOCAL_USER_ID, 'Local User');
+    setCookie(res, token);
+    res.json({ success: true, data: { id: LOCAL_USER_ID, username: 'Local User' } });
   } catch (err) {
     next(new ApiError(400, err.message));
   }
 });
 
+// POST /api/v1/auth/logout
 router.post('/logout', (req, res) => {
   res.clearCookie(COOKIE, { path: '/' });
   res.json({ success: true });
 });
 
+// GET /api/v1/auth/me
 router.get('/me', (req, res) => {
   res.json({
     success: true,
-    data: req.userId ? { id: req.userId, username: req.user && req.user.username } : null,
+    data: req.userId ? { id: req.userId, username: 'Local User' } : null,
   });
 });
 

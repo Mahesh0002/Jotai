@@ -19,6 +19,10 @@ export interface FocusContextValue {
   pauseSession: () => void;
   resumeSession: () => void;
   finishSession: (completeTask?: boolean) => Promise<void>;
+  // Legacy aliases used by a few timer components.
+  startTimer: (durationMinutes: number) => Promise<void>;
+  pauseTimer: () => void;
+  resumeTimer: () => void;
 
   setCurrentTask: (task: Task | null) => void;
   updateNotes: (notes: string) => void;
@@ -216,6 +220,9 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         pauseSession,
         resumeSession,
         finishSession,
+        startTimer: startSession,
+        pauseTimer: pauseSession,
+        resumeTimer: resumeSession,
         setCurrentTask,
         updateNotes,
         saveNotes,

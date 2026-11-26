@@ -1,133 +1,93 @@
-const FocusBlock = require('../models/FocusBlock');
-const Task = require('../models/Task');
+const focusRepository = require('../repositories/focusRepository');
+const taskRepository = require('../repositories/taskRepository');
+const eventBus = require('../services/eventBus').eventBus;
+const { v4: uuidv4 } = require('uuid');
 
-// Get blocks for a specific date range
-exports.getBlocks = async (req, res) => {
+exports.getBlocks = async (req, res, next) => {
   try {
+    const userId = req.userId || 'local_user';
     const { start: startQuery, end: endQuery, startDate, endDate } = req.query;
     const start = startQuery || startDate;
     const end = endQuery || endDate;
-    let query = {};
-    
+
+    let blocks;
     if (start && end) {
-      query = {
-        startTime: { $gte: new Date(start) },
-        endTime: { $lte: new Date(end) }
-      };
+      blocks = focusRepository.findByDateRange(userId, start, end);
     } else {
-      // Default to today
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
-      
-      query = {
-        startTime: { $gte: today, $lt: tomorrow }
-      };
+      blocks = focusRepository.findByDateRange(userId, today.toISOString(), tomorrow.toISOString());
     }
 
-    const blocks = await FocusBlock.find(query)
-      .populate('taskId', 'title priority projectId tags isStarred xpReward estimatedMinutes')
-      .sort({ startTime: 1 });
-      
     res.status(200).json({ success: true, count: blocks.length, data: blocks });
   } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
+    next(error);
   }
 };
 
-// Create a new block
-exports.createBlock = async (req, res) => {
+exports.createBlock = async (req, res, next) => {
   try {
-    const block = await FocusBlock.create(req.body);
-    const populatedBlock = await FocusBlock.findById(block._id).populate('taskId');
-    res.status(201).json({ success: true, data: populatedBlock });
+    const userId = req.userId || 'local_user';
+    const block = focusRepository.create(userId, req.body);
+    res.status(201).json({ success: true, data: block });
   } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
+    next(error);
   }
 };
 
-// Update a block (resize, move, edit)
-exports.updateBlock = async (req, res) => {
+exports.updateBlock = async (req, res, next) => {
   try {
-    const block = await FocusBlock.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true
-    }).populate('taskId');
-
-    if (!block) {
-      return res.status(404).json({ success: false, error: 'Block not found' });
-    }
-
+    const userId = req.userId || 'local_user';
+    const block = focusRepository.update(userId, req.params.id, req.body);
+    if (!block) return res.status(404).json({ success: false, message: 'Block not found' });
     res.status(200).json({ success: true, data: block });
   } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
+    next(error);
   }
 };
 
-// Delete a block
-exports.deleteBlock = async (req, res) => {
+exports.deleteBlock = async (req, res, next) => {
   try {
-    const block = await FocusBlock.findByIdAndDelete(req.params.id);
-
-    if (!block) {
-      return res.status(404).json({ success: false, error: 'Block not found' });
-    }
-
-    res.status(200).json({ success: true, data: {} });
+    const userId = req.userId || 'local_user';
+    const deleted = focusRepository.delete(userId, req.params.id);
+    if (!deleted) return res.status(404).json({ success: false, message: 'Block not found' });
+    res.status(200).json({ success: true, data: { deleted: true } });
   } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
+    next(error);
   }
 };
 
-// Complete a block and optionally complete task
-exports.completeBlock = async (req, res) => {
+exports.completeBlock = async (req, res, next) => {
   try {
+    const userId = req.userId || 'local_user';
     const { completeTask, elapsedSeconds, pausedSeconds, distractions, notes } = req.body;
-    
-    const block = await FocusBlock.findById(req.params.id).populate('taskId');
-    if (!block) {
-      return res.status(404).json({ success: false, error: 'Block not found' });
-    }
 
-    block.status = 'completed';
-    
-    // Update session data
-    if (elapsedSeconds !== undefined) block.elapsedSeconds = elapsedSeconds;
-    if (pausedSeconds !== undefined) block.pausedSeconds = pausedSeconds;
-    if (notes !== undefined) block.notes = notes;
-    if (distractions !== undefined) block.distractions = distractions;
+    const block = focusRepository.findById(userId, req.params.id);
+    if (!block) return res.status(404).json({ success: false, message: 'Block not found' });
 
-    // Calculate actual focused minutes
-    // Total elapsed minus paused minus sum of distraction durations (if we assume distractions aren't already included in paused)
-    const totalDistractionSeconds = (distractions || []).reduce((acc, d) => acc + (d.duration || 0), 0);
-    const focusedSeconds = (block.elapsedSeconds || 0) - (block.pausedSeconds || 0) - totalDistractionSeconds;
-    const focusedMinutes = Math.max(0, Math.floor(focusedSeconds / 60));
+    const updateData = { status: 'completed' };
+    if (elapsedSeconds !== undefined) updateData.elapsed_seconds = elapsedSeconds;
+    if (pausedSeconds !== undefined) updateData.paused_seconds = pausedSeconds;
+    if (notes !== undefined) updateData.notes = notes;
+    if (distractions !== undefined) updateData.distractions = JSON.stringify(distractions);
 
-    // Calculate simple XP based on actual focused duration (1 XP per minute as baseline)
-    block.xpReward = focusedMinutes > 0 ? focusedMinutes : 0;
-    
-    await block.save();
+    const updated = focusRepository.update(userId, req.params.id, updateData);
 
     let updatedTask = null;
-    if (completeTask && block.taskId) {
-      const task = await Task.findById(block.taskId._id);
-      if (task) {
-        task.status = 'completed';
-        task.completedAt = new Date();
-        // optionally add focus time to task
-        await task.save();
-        updatedTask = task;
-      }
+    if (completeTask && block.task_id) {
+      updatedTask = taskRepository.complete(userId, block.task_id);
     }
 
-    res.status(200).json({ 
-      success: true, 
-      data: block,
+    eventBus.publish('FOCUS_COMPLETED', { type: 'node', operation: 'focus.complete' }, { blockId: block.id }, userId);
+
+    res.status(200).json({
+      success: true,
+      data: updated,
       task: updatedTask,
-      xpAwarded: block.xpReward
     });
   } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
+    next(error);
   }
 };

@@ -1,24 +1,24 @@
-const Goal = require('../models/Goal');
+const goalRepository = require('../repositories/goalRepository');
 
 const createGoal = async (goalData) => {
-  const goal = new Goal(goalData);
-  return await goal.save();
+  const userId = goalData.user_id || 'local_user';
+  return goalRepository.create(userId, goalData);
 };
 
-const getGoals = async () => {
-  return await Goal.find().sort({ createdAt: -1 });
+const getGoals = async (userId = 'local_user') => {
+  return goalRepository.find(userId, { orderBy: 'created_at DESC' });
 };
 
-const getGoalById = async (id) => {
-  return await Goal.findById(id);
+const getGoalById = async (id, userId = 'local_user') => {
+  return goalRepository.findById(userId, id);
 };
 
-const updateGoal = async (id, updateData) => {
-  return await Goal.findByIdAndUpdate(id, updateData, { new: true });
+const updateGoal = async (id, updateData, userId = 'local_user') => {
+  return goalRepository.update(userId, id, updateData);
 };
 
-const deleteGoal = async (id) => {
-  return await Goal.findByIdAndDelete(id);
+const deleteGoal = async (id, userId = 'local_user') => {
+  return goalRepository.delete(userId, id);
 };
 
 module.exports = {

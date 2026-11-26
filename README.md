@@ -16,111 +16,108 @@ Anything not built is under **Roadmap** below.
 | Layer | Stack | Location |
 |---|---|---|
 | Frontend | React, TanStack Router/Query, Tailwind | `client/` |
-| Backend | Node.js, Express, MongoDB/Mongoose | `backend/` |
-| Agent runner | Python 3, FastAPI, `google-genai`, tenacity | `runner/` |
+| Backend | Node.js 22, Express, SQLite (`better-sqlite3`) | `backend/` |
+| Agent runner | Python 3, FastAPI, deterministic tools + local Ollama | `runner/` |
 
 Data flow for assistant actions:
 
 ```
 SmartAssistant.tsx
   → POST :8000/api/runner/trigger
-  → intent router (exact → keyword rules → LLM → UNKNOWN)
-  → orchestrator decides tool(s)
-  → Action Registry
+  → deterministic router for in-domain requests (no model call)
+  → out-of-domain requests only: local Ollama model on 127.0.0.1:11434
+  → explicit local tool / Action Registry
   → Node REST API (:5000/api/v1)
-  → MongoDB
+  → SQLite
 ```
 
-Python never connects to MongoDB. All reads/writes go through the Node API.
-The Runner authenticates to Node with `RUNNER_SERVICE_TOKEN` (Bearer).
+Python never opens the database directly. All reads/writes go through the Node
+API, and the Runner authenticates with `RUNNER_SERVICE_TOKEN` (Bearer).
+`PRIVACY_MODE=strict` rejects any non-loopback model provider, so the app makes
+no external network requests.
 
 ## What is implemented
 
 ### Web app
 - Tasks, projects, focus blocks, habits (definitions + completions), goals,
   notes, analytics endpoints, and the dashboard UI.
-- No login flow is wired into the UI; see **Known limitations**.
+- Local cookie auth (`jotai_token`); seeded demo credentials are `demo` / `demo1234`.
 
 ### Jötai Runner
-- **Provider abstraction** — `runner/llm_provider.py` defines
-  `BaseLLMProvider`, `GeminiProvider`, `StubProvider`; selection is via
-  `LLM_PROVIDER` (`stub` is the default). Agents never import the Gemini SDK.
-- **Hand-written tool loop** — Gemini Automatic Function Calling is explicitly
-  disabled; the agent sees and executes tool calls itself.
-- **429-only retry** — tenacity retries only HTTP 429 (`is_rate_limit_error`),
-  never 400/401/403.
-- **Bounded self-correction** — the planning agent caps revisions at 3 and
-  submits a flagged best-effort result.
-- **Propose → confirm → execute** — deletes require a single-use confirmation
-  `actionId`; the store is in-memory and expires (`PENDING_ACTION_TTL_SECONDS`).
-- **Deterministic math** — durations, habit counts/streaks, and the preference
-  profile are computed in Python (`runner/services/stats.py`); the LLM only
-  narrates those numbers.
-- **N-way intent routing** — `TASK | GOAL | HABIT | PLAN | INSIGHT | UNKNOWN`
-  with exact triggers, keyword rules, then an LLM classifier; `UNKNOWN` asks a
-  clarifying question instead of defaulting to PLAN.
-- **Bounded chat context** — server-side history capped at 6 turns plus one
-  pending confirmation (`runner/services/conversation_store.py`).
-- **Calendar-aware planning** — planning checks blocks against the Node
-  calendar endpoint and forces a revision on conflict. **Note:** that endpoint
-  currently returns synthetic events (`backend/src/controllers/todayController.js`),
-  not a real calendar integration.
-- **Task helpers** — `estimate_duration` (median of similar completed tasks,
-  no LLM in the number) and `suggest_subtasks` (LLM output goes to a proposal,
-  never auto-applied).
-- **Decision log + preference profile** — proposal accept/reject writes a
-  `DecisionLog` via Node; a pure-Python profiler injects a ≤150-token summary
-  into planning/habit prompts. This is deterministic aggregation, not ML.
+- **Deterministic first** — in-domain messages are routed by
+  `runner/agents/deterministic.py` to explicit local tools (task/goal/habit CRUD,
+  calendar/fetch/update) and answered from static templates. No generation is
+  involved, and ambiguous requests get a clarification question.
+- **Local-model fallback only** — out-of-domain text goes to
+  `qwen2.5:1.5b-instruct-q4_k_m` through Ollama on loopback. Embeddings use
+  `all-minilm:l6-v2`. `PRIVACY_MODE=strict` forbids any other provider.
+- **Propose → confirm → execute** — destructive actions require a single yes/no
+  confirmation held in the bounded conversation store
+  (`runner/services/conversation_store.py`).
+- **Local retrieval** — note context comes from the backend FTS5 endpoint
+  (`GET /api/v1/notes/search`); no embedding index is required for in-domain work.
+- **Reasoning artifacts** — tool calls, classifications, and `ui.invalidate`
+  hints are returned with each reply so the UI refreshes only affected data.
+- **Legacy orchestrator retained** — `runner/agents/router.py` and the older
+  action helpers still exist for compatibility tests, but are not on the primary
+  assistant path.
 
 ## Tests
 
 ```bash
-# Python runner (stub provider, no live model calls)
-LLM_PROVIDER=stub python -m pytest runner/ -q
+# Python runner (deterministic routing, auth, history, tools)
+PYTHONPATH=. python -m pytest runner/ -q
 
-# Node backend (serviceAuth + proposal decision logs)
-cd backend && npm test
+# Node backend under Node 22 (SQLite-backed integration tests)
+cd backend && node --test tests/*.test.js
+
+# Client type/lint/build checks
+cd client && npx tsc --noEmit && npm run lint && npm run build
 ```
 
-The suite covers the router (rule/exact/LLM/UNKNOWN table), bounded history,
-pending confirmations, confirmation single-use, duration math, habit stats,
-preference profiling, planning/calendar conflict revision, proposal decisions,
-and `serviceAuth` (missing/invalid/service/user-JWT/impersonation).
+Current status: 56 runner tests, 37 backend tests, and client `tsc`/lint/build
+all pass. Backend tests use isolated temporary SQLite databases.
 
 ## Run locally
 
 ```bash
-# 1. Node backend
+# 1. Node backend (Node 22 is required for better-sqlite3)
 cd backend
 npm install
-cp .env.example .env      # or create one
-# MONGODB_URI, RUNNER_SERVICE_TOKEN, JWT_SECRET...
+cp .env.example .env
+npm run migrate           # creates data/jotai.db and seeds demo user
 npm start                 # http://localhost:5000
 
-# 2. Runner
+# 2. Local model server (no cloud calls)
+tar --zstd -xf ollama-linux-amd64.tar.zst -C ~/.local
+~/.local/bin/ollama serve &
+~/.local/bin/ollama pull qwen2.5:1.5b-instruct-q4_k_m
+~/.local/bin/ollama pull all-minilm:l6-v2
+
+# 3. Runner
 python -m venv .venv
 . .venv/bin/activate
 pip install -r runner/requirements.txt
 cp runner/.env.example runner/.env
-LLM_PROVIDER=stub uvicorn runner.app:app --reload --port 8000
+uvicorn runner.app:app --port 8000
 
-# 3. Frontend
+# 4. Frontend
 cd client
 npm install
-npm run dev
+npm run dev               # http://localhost:8080
 ```
 
-Use the same `RUNNER_SERVICE_TOKEN` on both sides. For live Gemini calls set
-`LLM_PROVIDER=gemini` and `GEMINI_API_KEY`; the default is the stub.
+Use the same `RUNNER_SERVICE_TOKEN` in `backend/.env` and `runner/.env`. Keep
+`PRIVACY_MODE=strict`, `LLM_PROVIDER=ollama`, and `OLLAMA_HOST` on loopback.
 
 ## Roadmap (not built)
 
 - Real calendar integration (the current `/today/calendar` data is synthetic).
 - Insights narrative pipeline (weekly stats + one narration call).
 - Progress/RPG XP visualizations beyond the current Runner/profile screens.
-- Notes semantic search (needs an embedding store).
-- Local inference via llama.cpp (`LocalLlamaProvider`) and real benchmarks.
-- Multi-user scoping and a login flow for the UI.
+- Notes semantic search beyond local FTS5 (needs a persisted embedding store).
+- Benchmarks for the local quantized model.
+- Multi-user scoping beyond the seeded local/demo accounts.
 
 ## Known limitations
 
@@ -128,12 +125,12 @@ Use the same `RUNNER_SERVICE_TOKEN` on both sides. For live Gemini calls set
   in memory and are lost on restart.
 - **No per-user scoping.** The Node API does not filter by user; `userId` exists
   on tasks but is not populated. Do not deploy this publicly as-is.
-- **Auth split.** `serviceAuth` is strict for Runner-facing writes
-  (`POST /proposals`, `GET /proposals/decisions`, assistant context/suggestions).
-  The local UI routes (tasks/habits/focus) remain unauthenticated because no
-  login flow exists yet.
-- **Synthetic calendar.** Planning conflict checks run against mock events.
-- **Free-tier privacy.** Gemini free-tier content may be used by Google; use
-  synthetic data for demos and tests.
-- **No ML/learning claim.** The planner adapts only through the deterministic
-  accept/reject profile described above.
+- **Local auth only.** A cookie-based local login exists (`demo` / `demo1234`),
+  and Runner-facing writes also accept the shared service token. There is no
+  remote identity provider.
+- **Local calendar feed.** Planning reads a local ICS file configured in
+  preferences; CalDAV is not implemented.
+- **No cloud LLM.** Out-of-domain answers come from a quantized local model and
+  are not sent off-machine.
+- **No ML/learning claim.** Adaptation is limited to the deterministic
+  accept/reject preference profile.

@@ -1,5 +1,6 @@
 import axios from "axios";
 import { BACKEND_API_URL } from "@/lib/config";
+import { normalizePayload, toApiPayload } from "@/lib/normalize";
 
 // Base API instance
 export const api = axios.create({
@@ -10,8 +11,27 @@ export const api = axios.create({
   },
 });
 
+// UI payloads use camelCase; SQLite columns use snake_case.
+api.interceptors.request.use((config) => {
+  if (config.data && typeof config.data === "object" && !(config.data instanceof FormData)) {
+    config.data = toApiPayload(config.data);
+  }
+  return config;
+});
+
+// Normalize every backend response at one boundary so components can keep
+// using the Mongoose-shaped types they were written against.
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const body = response.data;
+    const url = response.config.url ?? "";
+    if (body && typeof body === "object" && "data" in body) {
+      response.data = { ...body, data: normalizePayload(url, body.data) };
+    } else if (body && typeof body === "object") {
+      response.data = normalizePayload(url, body);
+    }
+    return response;
+  },
   (error) => {
     if (
       error.response?.status === 401 &&
@@ -36,13 +56,16 @@ export const authApi = {
     const res = await api.get("/auth/me");
     return res.data.data as AuthUser | null;
   },
-  login: async (email: string, password: string) => {
-    const res = await api.post("/auth/login", { email, password });
+  login: async (identifier: string, password: string) => {
+    const payload = identifier.includes("@")
+      ? { email: identifier, password }
+      : { username: identifier, password };
+    const res = await api.post("/auth/login", payload);
     return res.data.data as AuthUser;
   },
   register: async (email: string, password: string, username?: string) => {
     const payload: Record<string, string> = { email, password };
-    if (username) payload.username = username;
+    if (username) payload["username"] = username;
     const res = await api.post("/auth/register", payload);
     return res.data.data as AuthUser;
   },
@@ -96,8 +119,8 @@ export interface Distraction {
 
 export interface FocusBlock {
   _id: string;
-  taskId?: Task;
-  title?: string;
+  taskId?: Task | undefined;
+  title?: string | undefined;
   startTime: string;
   endTime: string;
   durationMinutes: number;
@@ -175,15 +198,18 @@ export interface TodaySummary {
   focus: { seconds: number };
   streak: number;
   weeklyGoal: number;
-  habits: { completed: number };
-  tasks: { dueToday: number };
+  habits: { completed: number; total?: number };
+  tasks: { dueToday: number; completedToday?: number; overdue?: number };
 }
 
 export interface CalendarEvent {
+  _id?: string;
   title: string;
   detail: string;
   start: number;
+  end?: number;
   color: string;
+  source?: string;
 }
 
 export interface AIInsight {
@@ -192,50 +218,6 @@ export interface AIInsight {
   description: string;
   confidence: number;
 }
-
-// --- External signals ---
-export interface NewsArticle {
-  title: string;
-  description?: string;
-  source?: string;
-  url?: string;
-  publishedAt?: string;
-}
-
-export interface StockQuote {
-  symbol: string;
-  price: number;
-  change: number;
-  percent_change: number;
-  asOf?: string;
-}
-
-export interface WeatherSignal {
-  location: { name: string; region?: string; country?: string };
-  current: {
-    temp_c: number;
-    feelslike_c: number;
-    humidity: number;
-    wind_kph: number;
-    condition?: { text?: string; icon?: string };
-    last_updated?: string;
-  };
-}
-
-export const signalsApi = {
-  getNews: async () => {
-    const res = await api.get("/news");
-    return res.data.data as NewsArticle[];
-  },
-  getStock: async (symbol: string) => {
-    const res = await api.get("/stocks", { params: { symbol } });
-    return res.data.data as StockQuote;
-  },
-  getWeather: async (city: string) => {
-    const res = await api.get("/weather", { params: { city } });
-    return res.data.data as WeatherSignal;
-  },
-};
 
 // Today API
 export const todayApi = {
@@ -287,7 +269,6 @@ export const goalsApi = {
   },
 };
 
-
 // Focus Blocks API
 export const focusApi = {
   getAll: async (params?: { start?: string; end?: string }) => {
@@ -309,11 +290,11 @@ export const focusApi = {
   complete: async (
     id: string,
     payload: {
-      completeTask?: boolean;
-      elapsedSeconds?: number;
-      pausedSeconds?: number;
-      distractions?: Distraction[];
-      notes?: string;
+      completeTask?: boolean | undefined;
+      elapsedSeconds?: number | undefined;
+      pausedSeconds?: number | undefined;
+      distractions?: Distraction[] | undefined;
+      notes?: string | undefined;
     } = {},
   ) => {
     const res = await api.post(`/focus/${id}/complete`, payload);
@@ -346,7 +327,11 @@ export const habitsApi = {
     const res = await api.delete(`/habits/${id}`);
     return res.data;
   },
-  toggleCompletion: async (id: string, date: string, status: "completed" | "incomplete") => {
+  toggleCompletion: async (
+    id: string,
+    date: string | undefined,
+    status: "completed" | "incomplete",
+  ) => {
     const res = await api.post(`/habits/${id}/complete`, { date, status });
     return res.data as { success: boolean; data: any; xpAwarded: number };
   },
@@ -360,16 +345,16 @@ export const habitsApi = {
 export interface NoteFolder {
   _id: string;
   name: string;
-  icon: string;
-  color: string;
-  createdAt: string;
+  icon?: string | undefined;
+  color?: string | undefined;
+  createdAt?: string;
 }
 
 export interface NoteTag {
   _id: string;
   name: string;
-  color: string;
-  createdAt: string;
+  color?: string | undefined;
+  createdAt?: string;
 }
 
 export interface Note {
@@ -537,7 +522,7 @@ export interface ProposalData {
 
 export interface Proposal {
   _id: string;
-  type: "schedule_proposal" | "habit_insight" | "subtask_suggestion";
+  type: "schedule_proposal" | "habit_insight" | "subtask_suggestion" | "workout_plan";
   data: ProposalData;
   status: "pending" | "accepted" | "rejected";
   flags: string[];
@@ -556,5 +541,95 @@ export const proposalsApi = {
   updateStatus: async (id: string, status: "pending" | "accepted" | "rejected") => {
     const res = await api.patch(`/proposals/${id}/status`, { status });
     return res.data.data as Proposal;
-  }
+  },
+};
+
+// --- Local assistant, status and event stream ---
+
+export interface ConversationMessage {
+  id: string;
+  role: "user" | "assistant" | "tool";
+  content: string;
+  toolCalls?: unknown[] | null;
+  createdAt?: string;
+}
+
+export interface Conversation {
+  id: string;
+  sessionId: string;
+  messages: ConversationMessage[];
+}
+
+export const conversationsApi = {
+  get: async (sessionId: string) => {
+    const res = await api.get(`/conversations/${encodeURIComponent(sessionId)}`);
+    return res.data.data as Conversation;
+  },
+  addMessage: async (sessionId: string, role: "user" | "assistant", content: string) => {
+    const res = await api.post(`/conversations/${encodeURIComponent(sessionId)}/messages`, {
+      role,
+      content,
+    });
+    return res.data.data as ConversationMessage;
+  },
+  remove: async (sessionId: string) => {
+    await api.delete(`/conversations/${encodeURIComponent(sessionId)}`);
+  },
+};
+
+export interface StatusSnapshot {
+  [key: string]: any;
+}
+
+export interface WeeklyMetrics {
+  [key: string]: any;
+}
+
+export const statusApi = {
+  get: async () => {
+    const res = await api.get("/metrics/status");
+    return res.data.data as StatusSnapshot;
+  },
+  getWeekly: async () => {
+    const res = await api.get("/metrics/weekly");
+    return res.data.data as WeeklyMetrics;
+  },
+};
+
+export interface RawCalendarEvent {
+  id: string | number;
+  title: string;
+  start_time: string;
+  end_time: string;
+  source?: string;
+}
+
+export const calendarApi = {
+  getEvents: async (start: Date, end: Date) => {
+    const res = await api.get("/calendar/events", {
+      params: { start: start.toISOString(), end: end.toISOString() },
+    });
+    return (res.data.data ?? []) as CalendarEvent[];
+  },
+};
+
+export interface Suggestion {
+  _id: string;
+  type: string;
+  priority: "low" | "medium" | "high";
+  title: string;
+  message: string;
+  targetModule: string;
+  actions: string[];
+  status: string;
+}
+
+export const assistantApi = {
+  getSuggestions: async () => {
+    const res = await api.get("/assistant/suggestions");
+    return (res.data.data ?? []) as Suggestion[];
+  },
+  actOnSuggestion: async (id: string, action: "accept" | "dismiss") => {
+    await api.post(`/assistant/suggestions/${id}/${action}`);
+  },
 };

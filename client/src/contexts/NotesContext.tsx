@@ -71,7 +71,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
       setTags(fetchedTags);
 
       if (fetchedNotes.length > 0 && !activeNoteId) {
-        setActiveNoteId(fetchedNotes[0]._id);
+        setActiveNoteId(fetchedNotes[0]?._id ?? null);
       }
     } catch (err) {
       console.error("Failed to load notes data", err);
@@ -140,7 +140,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
         // Don't auto-switch unless necessary, but if it's completely gone from view, maybe switch
         // Actually, keeping the active note visible in editor even if filtered out is sometimes desired,
         // but for now let's switch to the first available if it's not in the list.
-        setActiveNoteId(filteredAndSortedNotes[0]._id);
+        setActiveNoteId(filteredAndSortedNotes[0]?._id ?? null);
       }
     } else {
       setActiveNoteId(null);

@@ -1,5 +1,5 @@
 import React from "react";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/card";
 import { useHabitAnalytics } from "@/hooks/useHabits";
 import { TrendingUp, Clock } from "lucide-react";
 
@@ -100,10 +100,7 @@ export function HabitScoreWidget() {
           </div>
           <div className="flex items-center gap-1.5 text-zinc-400 text-xs mt-0.5">
             <Clock className="h-3.5 w-3.5 text-zinc-500" />
-            <span>
-              {analytics.streaks.length > 0 ? analytics.streaks[0].currentStreak : 0} day
-              consistency
-            </span>
+            <span>{analytics.streaks[0]?.currentStreak ?? 0} day consistency</span>
           </div>
         </div>
       </div>

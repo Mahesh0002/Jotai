@@ -1,59 +1,39 @@
-const Task = require('../models/Task');
-const Habit = require('../models/Habit');
-const Suggestion = require('../models/Suggestion');
+const metricsService = require('../services/metricsService');
 
-// @desc    Get aggregated context for Assistant
-// @route   GET /api/v1/assistant/context
+/**
+ * GET /api/v1/assistant/context
+ * Returns real aggregated context for the assistant
+ */
 exports.getContext = async (req, res, next) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const [tasksRemaining, overdueTasks, habits] = await Promise.all([
-      Task.countDocuments({ status: { $ne: 'completed' }, dueDate: { $gte: today, $lt: tomorrow } }),
-      Task.countDocuments({ status: { $ne: 'completed' }, dueDate: { $lt: today } }),
-      Habit.find({ status: 'active' })  // fixed: was `{ active: true }` but schema uses `status`
-    ]);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        time: new Date().toISOString(),
-        today: {
-          tasks_remaining: tasksRemaining,
-          overdue_tasks: overdueTasks,
-          available_focus_minutes: 120 // mock for now
-        },
-        focus: {
-          active: false
-        },
-        progress: {
-          level: 1, // mock for now
-          xp: 0
-        }
-      }
-    });
+    const userId = req.userId || 'local_user';
+    const context = await metricsService.getContextSnapshot(userId);
+    res.status(200).json({ success: true, data: context });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Create a suggestion
-// @route   POST /api/v1/assistant/suggestions
+/**
+ * POST /api/v1/assistant/suggestions
+ * Create a suggestion (with dedupe)
+ */
 exports.createSuggestion = async (req, res, next) => {
   try {
+    const userId = req.userId || 'local_user';
     const { type, priority, title, message, targetModule, actions } = req.body;
 
-    // Deduplication logic: Check if a pending suggestion of this type and target already exists
-    const existing = await Suggestion.findOne({ type, targetModule, status: 'pending' });
+    // This would use suggestionRepository but for now return mock
+    // The actual implementation is in the repository
+    const suggestionRepository = require('../repositories/suggestionRepository');
+
+    const existing = suggestionRepository.findByTypeAndTarget(userId, type, targetModule);
     if (existing) {
       return res.status(200).json({ success: true, data: existing, message: 'Suggestion already exists' });
     }
 
-    const suggestion = await Suggestion.create({
-      type, priority, title, message, targetModule, actions
+    const suggestion = suggestionRepository.create(userId, {
+      type, priority, title, message, targetModule, actions: actions || [],
     });
 
     res.status(201).json({ success: true, data: suggestion });
@@ -62,41 +42,41 @@ exports.createSuggestion = async (req, res, next) => {
   }
 };
 
-// @desc    Get pending suggestions
-// @route   GET /api/v1/assistant/suggestions
+/**
+ * GET /api/v1/assistant/suggestions
+ * Get pending suggestions
+ */
 exports.getSuggestions = async (req, res, next) => {
   try {
+    const userId = req.userId || 'local_user';
     const { targetModule } = req.query;
-    let query = { status: 'pending' };
-    if (targetModule) query.targetModule = targetModule;
-
-    const suggestions = await Suggestion.find(query).sort({ priority: -1, createdAt: -1 });
+    const suggestionRepository = require('../repositories/suggestionRepository');
+    const suggestions = suggestionRepository.findPending(userId, targetModule);
     res.status(200).json({ success: true, count: suggestions.length, data: suggestions });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Accept, dismiss, or execute a suggestion
-// @route   POST /api/v1/assistant/suggestions/:id/:action
+/**
+ * POST /api/v1/assistant/suggestions/:id/:action
+ * Update suggestion status
+ */
 exports.updateSuggestionStatus = async (req, res, next) => {
   try {
-    const { id, action } = req.params; // action = 'accept', 'dismiss', 'execute'
-    
+    const userId = req.userId || 'local_user';
+    const { id, action } = req.params;
+
     if (!['accept', 'dismiss', 'execute'].includes(action)) {
-      return res.status(400).json({ success: false, error: 'Invalid action' });
+      return res.status(400).json({ success: false, message: 'Invalid action' });
     }
 
-    const suggestion = await Suggestion.findById(id);
+    const suggestionRepository = require('../repositories/suggestionRepository');
+    const suggestion = suggestionRepository.updateStatus(userId, id, action);
+
     if (!suggestion) {
-      return res.status(404).json({ success: false, error: 'Suggestion not found' });
+      return res.status(404).json({ success: false, message: 'Suggestion not found' });
     }
-
-    // Map the route action to the schema status enum
-    let newStatus = action === 'execute' ? 'executed' : (action === 'accept' ? 'accepted' : 'dismissed');
-
-    suggestion.status = newStatus;
-    await suggestion.save();
 
     res.status(200).json({ success: true, data: suggestion });
   } catch (error) {

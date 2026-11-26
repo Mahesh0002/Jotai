@@ -1,155 +1,158 @@
-const Habit = require('../models/Habit');
-const HabitCompletion = require('../models/HabitCompletion');
+const { v4: uuidv4 } = require('uuid');
+const { all, get, run } = require('../db');
+
+const userIdOf = (req) => req.userId || 'local_user';
+
+function dayRange(req) {
+  const { period, startDate, endDate } = req.query;
+  const now = new Date();
+  if (startDate && endDate) {
+    return {
+      start: new Date(startDate),
+      end: new Date(endDate),
+    };
+  }
+
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  if (period === 'month') start.setMonth(start.getMonth() - 1);
+  else start.setDate(start.getDate() - 6);
+  return { start, end: now };
+}
+
+function daysBetween(start, end) {
+  const days = [];
+  const cursor = new Date(start);
+  cursor.setHours(0, 0, 0, 0);
+  const last = new Date(end);
+  last.setHours(0, 0, 0, 0);
+  while (cursor <= last && days.length < 400) {
+    days.push(cursor.toISOString().slice(0, 10));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return days;
+}
 
 // POST /api/v1/habits/:id/complete
 // Toggle completion status for a specific date
-exports.toggleCompletion = async (req, res) => {
+exports.toggleCompletion = (req, res, next) => {
   try {
-    const { date, status } = req.body; // date: YYYY-MM-DD
-    const habitId = req.params.id;
-
+    const userId = userIdOf(req);
+    const { date, status } = req.body;
     if (!date) return res.status(400).json({ success: false, error: 'Please provide a date' });
 
-    const habit = await Habit.findById(habitId);
+    const habit = get(`SELECT * FROM habits WHERE id = ? AND user_id = ?`, [req.params.id, userId]);
     if (!habit) return res.status(404).json({ success: false, error: 'Habit not found' });
 
-    let completion = await HabitCompletion.findOne({ habitId, scheduledDate: date });
+    const existing = get(
+      `SELECT * FROM habit_completions WHERE habit_id = ? AND user_id = ? AND date(completed_at) = ?`,
+      [req.params.id, userId, date]
+    );
 
     if (status === 'completed') {
-      if (!completion) {
-        completion = await HabitCompletion.create({
-          habitId,
-          scheduledDate: date,
-          status: 'completed',
-          xpAwarded: habit.xpReward
-        });
+      if (existing) {
+        run(`UPDATE habit_completions SET status = 'completed' WHERE id = ?`, [existing.id]);
       } else {
-        completion.status = 'completed';
-        completion.completedAt = Date.now();
-        await completion.save();
+        run(
+          `INSERT INTO habit_completions (id, habit_id, user_id, completed_at, status)
+           VALUES (?, ?, ?, ?, 'completed')`,
+          [uuidv4(), req.params.id, userId, new Date().toISOString()]
+        );
       }
-    } else {
-      if (completion) {
-        await HabitCompletion.findByIdAndDelete(completion._id);
-        completion = null; // Unchecked
-      }
+    } else if (existing) {
+      run(`DELETE FROM habit_completions WHERE id = ?`, [existing.id]);
     }
 
-    res.status(200).json({ 
-      success: true, 
-      data: completion,
-      xpAwarded: status === 'completed' ? habit.xpReward : 0
+    res.status(200).json({
+      success: true,
+      data: { habit_id: req.params.id, date, status: status === 'completed' ? 'completed' : 'pending' },
+      ui: { invalidate: ['habits', 'today', 'analytics'] },
     });
   } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
+    next(error);
   }
 };
 
 // GET /api/v1/habits/analytics
-// Computes score, streaks, and heatmap
-exports.getAnalytics = async (req, res) => {
+// Computes score, streaks, and heatmap from SQLite completion rows
+exports.getAnalytics = (req, res, next) => {
   try {
-    const habits = await Habit.find({ status: 'active' });
-    const completions = await HabitCompletion.find({ status: 'completed' });
+    const userId = userIdOf(req);
+    const habits = all(`SELECT * FROM habits WHERE user_id = ? AND status = 'active'`, [userId]);
+    const completions = all(
+      `SELECT habit_id, completed_at FROM habit_completions WHERE user_id = ? AND status = 'completed'`,
+      [userId]
+    );
 
-    // 1. Habit Score (Normalized 0-100)
-    // Simple logic: (total completions / (habits * 30 days))
-    const expectedCompletions = habits.length * 7 || 1;
-    const score = Math.min(100, Math.round((completions.length / expectedCompletions) * 100));
-
-    // 2. Streaks (Map habitId -> streak)
-    const streaks = habits.map(h => {
-      const hComps = completions.filter(c => c.habitId.toString() === h._id.toString());
-      return {
-        habitId: h._id,
-        name: h.name,
-        icon: h.icon,
-        currentStreak: hComps.length, // Simplified streak logic
-      };
-    }).sort((a, b) => b.currentStreak - a.currentStreak);
-
-    // 3. Activity Heatmap
-    // Map YYYY-MM-DD -> count of completions
+    const expected = habits.length * 7 || 1;
+    const score = Math.min(100, Math.round((completions.length / expected) * 100));
+    const streakByHabit = {};
     const heatmap = {};
-    completions.forEach(c => {
-      heatmap[c.scheduledDate] = (heatmap[c.scheduledDate] || 0) + 1;
-    });
+    for (const completion of completions) {
+      streakByHabit[completion.habit_id] = (streakByHabit[completion.habit_id] || 0) + 1;
+      const day = String(completion.completed_at).slice(0, 10);
+      heatmap[day] = (heatmap[day] || 0) + 1;
+    }
+
+    const streaks = habits
+      .map((habit) => ({
+        habitId: habit.id,
+        name: habit.name,
+        icon: habit.category,
+        currentStreak: streakByHabit[habit.id] || 0,
+      }))
+      .sort((a, b) => b.currentStreak - a.currentStreak);
 
     res.status(200).json({
       success: true,
       data: {
         score,
-        scoreTrend: 8,
+        scoreTrend: 0,
         streaks,
         heatmap,
-        topHabits: streaks.slice(0, 3).map(s => ({ ...s, completionRate: 94 }))
-      }
+        topHabits: streaks.slice(0, 3).map((streak) => ({
+          ...streak,
+          completionRate: expected ? Math.round((streak.currentStreak / 7) * 100) : 0,
+        })),
+      },
     });
   } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
+    next(error);
   }
 };
 
 // GET /api/v1/habits/consistency
-// Returns completion data for habit grid
-exports.getConsistency = async (req, res) => {
+// Returns completion data for the habit grid
+exports.getConsistency = (req, res, next) => {
   try {
-    let { period, startDate, endDate } = req.query;
-    
-    let start = new Date();
-    let end = new Date();
-    
-    if (startDate && endDate) {
-      start = new Date(startDate);
-      end = new Date(endDate);
-    } else {
-      start.setHours(0,0,0,0);
-      if (period === 'month') {
-        start.setMonth(start.getMonth() - 1);
-      } else {
-        start.setDate(start.getDate() - 6); // 7 days inclusive
-      }
+    const userId = userIdOf(req);
+    const { start, end } = dayRange(req);
+    const days = daysBetween(start, end);
+    const habits = all(`SELECT * FROM habits WHERE user_id = ? AND status = 'active'`, [userId]);
+    const completions = all(
+      `SELECT habit_id, date(completed_at) AS day FROM habit_completions
+       WHERE user_id = ? AND status = 'completed' AND date(completed_at) >= ? AND date(completed_at) <= ?`,
+      [userId, days[0], days[days.length - 1]]
+    );
+
+    const completedByHabit = {};
+    for (const completion of completions) {
+      (completedByHabit[completion.habit_id] ||= new Set()).add(completion.day);
     }
-
-    const habits = await Habit.find({ status: 'active' });
-    const completions = await HabitCompletion.find({
-      scheduledDate: { 
-        $gte: start.toISOString().split('T')[0], 
-        $lte: end.toISOString().split('T')[0] 
-      },
-      status: 'completed'
-    });
-
-    const data = habits.map(h => {
-      const hComps = completions.filter(c => c.habitId.toString() === h._id.toString());
-      
-      // Compute simple current streak again for convenience
-      const allComps = completions; // Note: to get real streak we might need all history, but we'll use a mocked streak or a simple calculation for now.
-      // Wait, we can fetch all completions for streak calculation if needed, or just return basic.
-      
-      // Let's create an array of booleans for the requested days
-      const daysArray = [];
-      let current = new Date(start);
-      while (current <= end) {
-        const dateStr = current.toISOString().split('T')[0];
-        const isCompleted = hComps.some(c => c.scheduledDate === dateStr);
-        daysArray.push(isCompleted);
-        current.setDate(current.getDate() + 1);
-      }
-
-      return {
-        id: h._id,
-        name: h.name,
-        streak: hComps.length, // approximation of streak in period
-        days: daysArray
-      };
-    });
 
     res.status(200).json({
       success: true,
-      data
+      data: habits.map((habit) => {
+        const completedDays = completedByHabit[habit.id] || new Set();
+        return {
+          id: habit.id,
+          name: habit.name,
+          streak: completedDays.size,
+          days: days.map((day) => completedDays.has(day)),
+        };
+      }),
     });
   } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
+    next(error);
   }
 };

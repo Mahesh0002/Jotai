@@ -1,85 +1,33 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { IntegrationsHeader } from "@/components/integrations/IntegrationsHeader";
-import { ConnectedIntegrations } from "@/components/integrations/ConnectedIntegrations";
-import { AvailableIntegrations } from "@/components/integrations/AvailableIntegrations";
-import { SyncOverview } from "@/components/integrations/SyncOverview";
-import { IntegrationSidebar } from "@/components/integrations/IntegrationSidebar";
-import { useState, useEffect } from "react";
-import { useSearch } from "@tanstack/react-router";
+import { Lock, PlugZap } from "lucide-react";
 
 export const Route = createFileRoute("/integrations")({
   component: IntegrationsRoute,
 });
 
+/** Cloud integrations are disabled in privacy mode; no OAuth redirects here. */
 function IntegrationsRoute() {
-  const [activeTab, setActiveTab] = useState("Overview");
-  const [selectedIntegration, setSelectedIntegration] = useState<string | null>(null);
-
-  // Auto-open a panel if navigated with ?service=Spotify or ?service=GitHub
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const service = params.get("service");
-    if (service) {
-      setSelectedIntegration(service);
-      // Clean the URL
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-  }, []);
-
-  const handleSelectIntegration = (name: string) => {
-    setSelectedIntegration((prev) => (prev === name ? null : name));
-  };
-
-  const handleConnectionChange = (service: string, connected: boolean) => {
-    // Force re-render by toggling selection so the sidebar reflects new state
-    if (connected) setSelectedIntegration(service);
-  };
-
   return (
-    <div className="flex h-full w-full bg-zinc-950 overflow-hidden rounded-xl border border-zinc-800 shadow-sm">
-      {/* Left Main Column: Dashboard */}
-      <div className="flex flex-1 flex-col overflow-hidden relative">
-        <IntegrationsHeader activeTab={activeTab} onTabChange={setActiveTab} />
-
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
-          <div className="flex flex-col gap-8 max-w-5xl mx-auto pb-8">
-            {(activeTab === "Overview" || activeTab === "Connected") && (
-              <ConnectedIntegrations
-                onSelectIntegration={handleSelectIntegration}
-                selectedIntegration={selectedIntegration}
-              />
-            )}
-
-            {(activeTab === "Overview" || activeTab === "Available") && (
-              <AvailableIntegrations />
-            )}
-
-            {activeTab === "Sync History" && (
-              <div className="flex flex-col mt-4">
-                <h2 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 pl-1 mb-4">
-                  Sync History
-                </h2>
-                <div className="text-zinc-500 text-[11px] flex items-center justify-center h-32 border border-dashed border-zinc-800 rounded-xl bg-zinc-900/10">
-                  Sync History will appear here.
-                </div>
-              </div>
-            )}
-
-            {(activeTab === "Overview" || activeTab === "Connected") && (
-              <div className="mt-auto pt-8">
-                <SyncOverview />
-              </div>
-            )}
+    <div className="flex h-full w-full items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 p-8 shadow-sm">
+      <div className="flex max-w-lg flex-col items-start gap-4 rounded-xl border border-zinc-800/70 bg-zinc-900/40 p-8">
+        <div className="flex items-center gap-3">
+          <span className="flex size-9 items-center justify-center rounded-full bg-purple-500/15 text-purple-300">
+            <PlugZap className="size-4" />
+          </span>
+          <div>
+            <h1 className="text-lg font-semibold text-white">Integrations</h1>
+            <p className="text-[11px] text-zinc-500">Privacy mode is active</p>
           </div>
         </div>
+        <p className="text-sm leading-relaxed text-zinc-400">
+          Cloud connectors are switched off so your tasks, notes and calendar never leave this
+          laptop. The local calendar feed is configured in Settings → Calendar feed.
+        </p>
+        <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-[11px] text-zinc-500">
+          <Lock className="size-3.5" />
+          No external requests are made by this application.
+        </div>
       </div>
-
-      {/* Right Sidebar: Dynamic integration detail panel */}
-      <IntegrationSidebar
-        selectedIntegration={selectedIntegration}
-        onClose={() => setSelectedIntegration(null)}
-        onConnectionChange={handleConnectionChange}
-      />
     </div>
   );
 }

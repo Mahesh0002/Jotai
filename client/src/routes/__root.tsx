@@ -7,10 +7,9 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useState, useEffect, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { IntegrationsModal } from "@/components/jotai-widgets";
 import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
 import { SmartAssistant } from "@/components/SmartAssistant";
@@ -19,6 +18,7 @@ import { Toaster } from "sonner";
 import { FocusProvider } from "@/contexts/FocusContext";
 import { NotesProvider } from "@/contexts/NotesContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
+import { EventsProvider } from "@/contexts/EventsContext";
 
 function NotFoundComponent() {
   return (
@@ -96,12 +96,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@jotai_app" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap",
-      },
     ],
     links: [
       {
@@ -133,15 +127,6 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const [integrationsOpen, setIntegrationsOpen] = useState(false);
-  const [integrations, setIntegrations] = useState<Record<string, boolean>>({
-    calendar: false,
-    notion: false,
-    spotify: true,
-    github: false,
-    trello: false,
-  });
-
   // ─── Centralized Assistant Invalidation Handler ────────────────────────────
   // SmartAssistant dispatches "jotai-invalidate" with a list of query-key strings.
   // This is the SINGLE listener — no individual component needs to know about it.
@@ -150,9 +135,7 @@ function RootComponent() {
     const handler = (e: Event) => {
       const keys = (e as CustomEvent<string[]>).detail;
       if (!Array.isArray(keys)) return;
-      keys.forEach((key) =>
-        queryClient.invalidateQueries({ queryKey: [key] })
-      );
+      keys.forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
     };
     window.addEventListener("jotai-invalidate", handler);
     return () => window.removeEventListener("jotai-invalidate", handler);
@@ -161,30 +144,26 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SettingsProvider>
-        <FocusProvider>
-          <NotesProvider>
-            <div className="flex h-screen bg-zinc-950 text-foreground overflow-hidden">
-              <Sidebar onOpenIntegrations={() => setIntegrationsOpen(true)} />
-              <div className="flex-1 flex flex-col overflow-y-auto">
-                <Topbar />
-                <main className="mx-auto w-full max-w-[1600px] p-6">
-                  <Outlet />
-                </main>
+      <EventsProvider>
+        <SettingsProvider>
+          <FocusProvider>
+            <NotesProvider>
+              <div className="flex h-screen bg-zinc-950 text-foreground overflow-hidden">
+                <Sidebar />
+                <div className="flex-1 flex flex-col overflow-y-auto">
+                  <Topbar />
+                  <main className="mx-auto w-full max-w-[1600px] p-6">
+                    <Outlet />
+                  </main>
+                </div>
+                <SmartAssistant />
+                <ProactiveSuggestions />
+                <Toaster theme="dark" position="bottom-right" />
               </div>
-              <IntegrationsModal
-                open={integrationsOpen}
-                integrations={integrations}
-                onToggle={(id) => setIntegrations((current) => ({ ...current, [id]: !current[id] }))}
-                onClose={() => setIntegrationsOpen(false)}
-              />
-              <SmartAssistant />
-              <ProactiveSuggestions />
-              <Toaster theme="dark" position="bottom-right" />
-            </div>
-          </NotesProvider>
-        </FocusProvider>
-      </SettingsProvider>
+            </NotesProvider>
+          </FocusProvider>
+        </SettingsProvider>
+      </EventsProvider>
     </QueryClientProvider>
   );
 }

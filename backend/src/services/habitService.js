@@ -1,24 +1,24 @@
-const Habit = require('../models/Habit');
+const habitRepository = require('../repositories/habitRepository');
 
 const createHabit = async (habitData) => {
-  const habit = new Habit(habitData);
-  return await habit.save();
+  const userId = habitData.user_id || 'local_user';
+  return habitRepository.create(userId, habitData);
 };
 
-const getHabits = async () => {
-  return await Habit.find().sort({ createdAt: -1 });
+const getHabits = async (userId = 'local_user') => {
+  return habitRepository.find(userId, { orderBy: 'created_at DESC' });
 };
 
-const getHabitById = async (id) => {
-  return await Habit.findById(id);
+const getHabitById = async (id, userId = 'local_user') => {
+  return habitRepository.findById(userId, id);
 };
 
-const updateHabit = async (id, updateData) => {
-  return await Habit.findByIdAndUpdate(id, updateData, { new: true });
+const updateHabit = async (id, updateData, userId = 'local_user') => {
+  return habitRepository.update(userId, id, updateData);
 };
 
-const deleteHabit = async (id) => {
-  return await Habit.findByIdAndDelete(id);
+const deleteHabit = async (id, userId = 'local_user') => {
+  return habitRepository.delete(userId, id);
 };
 
 module.exports = {

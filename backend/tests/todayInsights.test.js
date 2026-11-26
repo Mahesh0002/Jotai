@@ -3,7 +3,9 @@ const assert = require('node:assert');
 const express = require('express');
 const request = require('supertest');
 
-const FocusBlock = require('../src/models/FocusBlock');
+const { setupTestDb } = require('./helpers/testDb');
+const { db, cleanup } = setupTestDb('insights');
+
 const todayRoutes = require('../src/routes/todayRoutes');
 
 function buildApp() {
@@ -13,44 +15,48 @@ function buildApp() {
   return app;
 }
 
-test('focus insight is computed from completed focus sessions', async () => {
-  const originalFind = FocusBlock.find;
-  FocusBlock.find = async (query) => {
-    assert.strictEqual(query.status, 'completed');
-    assert.ok(query.startTime.$gte instanceof Date);
-    return [
-      { startTime: new Date('2026-11-20T09:00:00'), durationMinutes: 100 },
-      { startTime: new Date('2026-11-21T09:30:00'), durationMinutes: 80 },
-      { startTime: new Date('2026-11-22T15:00:00'), durationMinutes: 30 },
-    ];
-  };
+function insertFocusBlock(id, daysAgo, hour, minutes) {
+  const start = new Date();
+  start.setDate(start.getDate() - daysAgo);
+  start.setHours(hour, 0, 0, 0);
+  db.run(
+    `INSERT INTO focus_blocks (id, user_id, title, start_time, end_time, elapsed_seconds, status, source, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'completed', 'assistant', ?)`,
+    [
+      id,
+      'local_user',
+      'Focus',
+      start.toISOString(),
+      new Date(start.getTime() + minutes * 60000).toISOString(),
+      minutes * 60,
+      new Date().toISOString(),
+    ]
+  );
+}
 
-  try {
-    const response = await request(buildApp()).get('/today/insights');
-    assert.strictEqual(response.status, 200);
-    assert.strictEqual(response.body.success, true);
-    assert.strictEqual(response.body.data.type, 'focus_window');
-    assert.match(response.body.data.headline, /focus 71% longer around 09:00–10:00/);
-    assert.match(response.body.data.description, /3 completed focus sessions/);
-    assert.ok(response.body.data.confidence > 0.5);
-    assert.ok(response.body.data.confidence <= 0.95);
-  } finally {
-    FocusBlock.find = originalFind;
-  }
+test('focus insight is computed from completed focus sessions', async () => {
+  insertFocusBlock('block-1', 6, 9, 100);
+  insertFocusBlock('block-2', 5, 9, 80);
+  insertFocusBlock('block-3', 4, 15, 30);
+
+  const response = await request(buildApp()).get('/today/insights');
+  assert.strictEqual(response.status, 200);
+  assert.strictEqual(response.body.success, true);
+  assert.strictEqual(response.body.data.type, 'focus_window');
+  assert.match(response.body.data.headline, /focus 71% longer around 09:00–10:00/);
+  assert.match(response.body.data.description, /3 completed focus sessions/);
+  assert.ok(response.body.data.confidence > 0.5);
+  assert.ok(response.body.data.confidence <= 0.95);
 });
 
 test('insight is null when there is not enough focus history', async () => {
-  const originalFind = FocusBlock.find;
-  FocusBlock.find = async () => [
-    { startTime: new Date('2026-11-20T09:00:00'), durationMinutes: 60 },
-  ];
+  db.run('DELETE FROM focus_blocks');
+  insertFocusBlock('block-4', 1, 9, 60);
 
-  try {
-    const response = await request(buildApp()).get('/today/insights');
-    assert.strictEqual(response.status, 200);
-    assert.strictEqual(response.body.data, null);
-    assert.match(response.body.message, /at least three/i);
-  } finally {
-    FocusBlock.find = originalFind;
-  }
+  const response = await request(buildApp()).get('/today/insights');
+  assert.strictEqual(response.status, 200);
+  assert.strictEqual(response.body.data, null);
+  assert.match(response.body.message, /at least three/i);
 });
+
+test.after(cleanup);

@@ -18,7 +18,7 @@ import {
   Calendar,
   CalendarDays,
   TrendingUp,
-  Loader2
+  Loader2,
 } from "lucide-react";
 
 export function TodayContainer() {
@@ -29,7 +29,7 @@ export function TodayContainer() {
     nextAction,
     loading,
     refreshNextAction,
-    refreshSummary
+    refreshSummary,
   } = useToday();
 
   const {
@@ -40,10 +40,16 @@ export function TodayContainer() {
     pauseSession,
     resumeSession,
     finishSession,
-    setCurrentTask
+    setCurrentTask,
   } = useFocus();
 
-  const { goals: rawGoals, isLoading: goalsLoading, createGoal, updateGoal, deleteGoal: removeGoal } = useGoals();
+  const {
+    goals: rawGoals,
+    isLoading: goalsLoading,
+    createGoal,
+    updateGoal,
+    deleteGoal: removeGoal,
+  } = useGoals();
 
   // Map backend Goal model to the local Goal display type used by DailyQuestWidget
   const goals: Goal[] = rawGoals.map((g) => ({
@@ -121,16 +127,16 @@ export function TodayContainer() {
 }
 
 function getGreeting(hour: number) {
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
-    return "Good evening";
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
 }
 
 function formatDuration(seconds: number) {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    if (hrs > 0) return `${hrs}h ${mins}m`;
-    return `${mins}m`;
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  if (hrs > 0) return `${hrs}h ${mins}m`;
+  return `${mins}m`;
 }
 
 type TodayPresentationalProps = {
@@ -173,24 +179,24 @@ export function TodayPresentational(props: TodayPresentationalProps) {
   const now = new Date();
   const greeting = getGreeting(now.getHours());
   const formattedDate = new Intl.DateTimeFormat(undefined, {
-      weekday: "long",
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
   }).format(now);
 
   const formatEventTime = (timestamp: number) => {
-      return new Intl.DateTimeFormat(undefined, {
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true
-      }).format(new Date(timestamp));
+    return new Intl.DateTimeFormat(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }).format(new Date(timestamp));
   };
 
   const upcomingEvents = calendarEvents
-      .filter(event => event.start > now.getTime())
-      .sort((a, b) => a.start - b.start)
-      .slice(0, 4);
+    .filter((event) => event.start > now.getTime())
+    .sort((a, b) => a.start - b.start)
+    .slice(0, 4);
 
   return (
     <div className="flex gap-8 h-full">
@@ -218,7 +224,7 @@ export function TodayPresentational(props: TodayPresentationalProps) {
                   Today at a glance
                 </span>
               </div>
-              
+
               <div className="hidden lg:block h-10 w-px bg-zinc-800" />
 
               <div className="flex items-center gap-3">
@@ -278,7 +284,9 @@ export function TodayPresentational(props: TodayPresentationalProps) {
                   <LayoutList className="h-6 w-6" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-lg font-bold text-white">{summary?.habits.completed || 0}</span>
+                  <span className="text-lg font-bold text-white">
+                    {summary?.habits.completed || 0}
+                  </span>
                   <span className="text-[10px] text-zinc-500">Habits done</span>
                 </div>
               </div>
@@ -290,7 +298,9 @@ export function TodayPresentational(props: TodayPresentationalProps) {
                   <Calendar className="h-6 w-6" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-lg font-bold text-white">{summary?.tasks.dueToday || 0}</span>
+                  <span className="text-lg font-bold text-white">
+                    {summary?.tasks.dueToday || 0}
+                  </span>
                   <span className="text-[10px] text-zinc-500">Due today</span>
                 </div>
               </div>
@@ -324,7 +334,9 @@ export function TodayPresentational(props: TodayPresentationalProps) {
                     <h3 className="mb-1 text-xl font-bold text-white">{nextAction.task.title}</h3>
                     <p className="mb-4 text-xs text-zinc-400">
                       {nextAction.task.dueDate && `Due today • `}
-                      {nextAction.task.estimatedMinutes ? `${nextAction.task.estimatedMinutes} min estimated` : ""}
+                      {nextAction.task.estimatedMinutes
+                        ? `${nextAction.task.estimatedMinutes} min estimated`
+                        : ""}
                     </p>
 
                     <div className="mb-4 flex gap-2">
@@ -338,9 +350,7 @@ export function TodayPresentational(props: TodayPresentationalProps) {
                       )}
                     </div>
 
-                    <p className="text-sm leading-relaxed text-zinc-400">
-                      {nextAction.reason}
-                    </p>
+                    <p className="text-sm leading-relaxed text-zinc-400">{nextAction.reason}</p>
                   </div>
 
                   <div className="mt-6 flex gap-3">
@@ -350,7 +360,7 @@ export function TodayPresentational(props: TodayPresentationalProps) {
                     >
                       <Play className="h-4 w-4" /> Start Focus
                     </button>
-                    <button 
+                    <button
                       onClick={() => onMarkComplete(nextAction.task!._id)}
                       className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 hover:text-emerald-400 hover:border-emerald-500/30"
                     >
@@ -362,12 +372,14 @@ export function TodayPresentational(props: TodayPresentationalProps) {
                 <div className="flex h-full flex-col items-center justify-center text-center">
                   <Check className="h-10 w-10 text-emerald-500 mb-4" />
                   <h3 className="text-lg font-bold text-white mb-2">All Caught Up!</h3>
-                  <p className="text-sm text-zinc-400">You've completed all high-priority tasks for today.</p>
+                  <p className="text-sm text-zinc-400">
+                    You've completed all high-priority tasks for today.
+                  </p>
                 </div>
               )}
             </div>
           </div>
-          
+
           <div className="col-span-12 sm:col-span-6 lg:col-span-3 row-span-2">
             <div className="h-full rounded-xl border border-zinc-800 bg-zinc-900/80 backdrop-blur-md shadow-sm overflow-hidden">
               <FocusTimerWidget
@@ -379,7 +391,7 @@ export function TodayPresentational(props: TodayPresentationalProps) {
               />
             </div>
           </div>
-          
+
           <div className="col-span-12 sm:col-span-6 lg:col-span-4 row-span-2 min-h-[300px]">
             <div className="h-full rounded-xl border border-zinc-800 bg-zinc-900/80 backdrop-blur-md shadow-sm overflow-hidden p-0">
               <DailyQuestWidget
@@ -397,7 +409,7 @@ export function TodayPresentational(props: TodayPresentationalProps) {
               <NotepadWidget />
             </div>
           </div>
-          
+
           <div className="col-span-12 lg:col-span-4 row-span-1 min-h-[200px]">
             <div className="flex h-full flex-col rounded-xl border border-zinc-800 bg-zinc-900/80 p-5 shadow-sm backdrop-blur-md">
               <div className="mb-4 flex items-center justify-between">
@@ -419,10 +431,14 @@ export function TodayPresentational(props: TodayPresentationalProps) {
                 )}
                 {upcomingEvents.map((item, i) => (
                   <div key={i} className="flex items-center gap-4">
-                    <span className="w-14 text-[10px] font-medium text-zinc-500 shrink-0">{formatEventTime(item.start)}</span>
+                    <span className="w-14 text-[10px] font-medium text-zinc-500 shrink-0">
+                      {formatEventTime(item.start)}
+                    </span>
                     <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${item.color}`} />
                     <div className="flex flex-col overflow-hidden">
-                      <span className="text-xs font-semibold text-zinc-300 truncate">{item.title}</span>
+                      <span className="text-xs font-semibold text-zinc-300 truncate">
+                        {item.title}
+                      </span>
                       <span className="text-[9px] text-zinc-500 truncate">{item.detail}</span>
                     </div>
                   </div>
@@ -430,7 +446,7 @@ export function TodayPresentational(props: TodayPresentationalProps) {
               </div>
             </div>
           </div>
-          
+
           <div className="col-span-12 lg:col-span-4 row-span-1 min-h-[200px]">
             <div className="flex h-full flex-col justify-between rounded-xl border border-zinc-800 bg-zinc-900/80 p-5 shadow-sm backdrop-blur-md relative overflow-hidden">
               <div className="mb-4 flex items-center gap-2 text-purple-400 relative z-10">
@@ -448,12 +464,10 @@ export function TodayPresentational(props: TodayPresentationalProps) {
                     <p className="text-sm leading-relaxed text-zinc-300 mb-2 font-medium">
                       {insights.headline}
                     </p>
-                    <p className="text-xs text-zinc-500">
-                      {insights.description}
-                    </p>
+                    <p className="text-xs text-zinc-500">{insights.description}</p>
                   </>
                 ) : (
-                   <p className="text-sm leading-relaxed text-zinc-300 mb-2">
+                  <p className="text-sm leading-relaxed text-zinc-300 mb-2">
                     Analyzing your focus data...
                   </p>
                 )}

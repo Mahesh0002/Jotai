@@ -51,8 +51,6 @@ export function NotesHeader() {
               + New Note
             </button>
           </div>
-
-
         </div>
       </div>
 

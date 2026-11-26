@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI
@@ -6,23 +7,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from runner.actions.registry import registry
-import runner.actions.task_actions  # noqa: F401  (registers task actions)
+import runner.actions.task_actions  # noqa: F401
 import runner.actions.goal_actions  # noqa: F401
 import runner.actions.habit_actions  # noqa: F401
-from runner.agents.orchestrator import run_orchestrator
-from runner.events.consumer import start_consumer
+from runner.agents.agent_loop import run_agent
+from runner.services.egress_guard import assert_egress_guard
+from runner.services.scheduler import lifespan as scheduler_lifespan
 
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="Jötai Runner")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+logger = logging.getLogger(__name__)
 
 
 class TriggerRequest(BaseModel):
@@ -37,37 +31,50 @@ class ExecuteRequest(BaseModel):
     actionId: Optional[str] = None
 
 
-consumer_stop_event = None
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    logger.info("Starting Jötai Runner...")
+
+    # Egress guard assertion
+    assert_egress_guard()
+
+    # Start scheduler
+    async with scheduler_lifespan(app):
+        yield
+
+    # Shutdown
+    logger.info("Jötai Runner shutdown complete")
 
 
-@app.on_event("startup")
-def startup_event():
-    global consumer_stop_event
-    print("Starting Redis Consumer...")
-    consumer_stop_event = start_consumer()
+app = FastAPI(title="Jötai Runner", lifespan=lifespan)
 
-
-@app.on_event("shutdown")
-def shutdown_event():
-    global consumer_stop_event
-    if consumer_stop_event:
-        print("Stopping Redis Consumer...")
-        from runner.events.consumer import stop_consumer
-
-        stop_consumer(consumer_stop_event)
-        consumer_stop_event = None
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "service": "Jötai Runner"}
+    from runner.config import settings
+    return {
+        "status": "ok",
+        "service": "Jötai Runner",
+        "llm": settings.LLM_PROVIDER,
+        "offline": settings.PRIVACY_MODE == "strict",
+    }
 
 
 @app.post("/api/runner/trigger")
-def trigger_agent(request: TriggerRequest):
+async def trigger_agent(request: TriggerRequest):
     try:
-        return run_orchestrator(request.intent, request.user_id, request.sessionId)
+        return await run_agent(request.intent, request.user_id, request.sessionId)
     except Exception as exc:
+        logger.exception("Trigger error")
         return {"success": False, "message": str(exc)}
 
 
@@ -87,6 +94,7 @@ def execute_action(request: ExecuteRequest):
             },
         }
     except Exception as exc:
+        logger.exception("Execute error")
         return {"success": False, "message": str(exc)}
 
 

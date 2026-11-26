@@ -44,7 +44,9 @@ function load(): IntegrationsState {
 function save(state: IntegrationsState) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {}
+  } catch {
+    /* ignore */
+  }
 }
 
 // ─── Spotify helpers ─────────────────────────────────────────────────────────
@@ -113,7 +115,9 @@ export async function getValidSpotifyToken(): Promise<string | null> {
       setSpotifyTokens(newTokens);
       return newTokens.accessToken;
     }
-  } catch {}
+  } catch {
+    /* ignore */
+  }
 
   // Refresh failed — clear
   clearSpotifyTokens();
@@ -167,7 +171,7 @@ export async function generateCodeChallenge(verifier: string): Promise<string> {
 /** Build the Spotify auth URL for PKCE */
 export async function buildSpotifyAuthUrl(
   clientId: string,
-  redirectUri: string
+  redirectUri: string,
 ): Promise<{ url: string; codeVerifier: string }> {
   const verifier = generateCodeVerifier();
   const challenge = await generateCodeChallenge(verifier);

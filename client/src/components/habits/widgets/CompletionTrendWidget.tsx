@@ -1,27 +1,33 @@
 import React from "react";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/card";
 import { ChevronDown, ArrowRight, TrendingUp, CheckCircle2, Zap, Target } from "lucide-react";
 import { useHabitAnalytics } from "@/hooks/useHabits";
 
 export function CompletionTrendWidget() {
   const { analytics } = useHabitAnalytics();
 
-  // Mock data for the 12-week chart
-  const weeks = [
-    "W18",
-    "W19",
-    "W20",
-    "W21",
-    "W22",
-    "W23",
-    "W24",
-    "W25",
-    "W26",
-    "W27",
-    "W28",
-    "W29",
-  ];
-  const values = [20, 35, 60, 50, 55, 65, 55, 75, 75, 65, 60, 70]; // Representing percentage heights on SVG
+  // Derive the 12-week trend from locally stored daily completion counts.
+  const today = new Date();
+  const weeks: string[] = [];
+  const values: number[] = [];
+  for (let w = 11; w >= 0; w--) {
+    const weekEnd = new Date(today);
+    weekEnd.setDate(weekEnd.getDate() - w * 7);
+    const weekStart = new Date(weekEnd);
+    weekStart.setDate(weekStart.getDate() - 6);
+    weeks.push(
+      `W${Math.ceil(((weekStart.getTime() - new Date(weekStart.getFullYear(), 0, 1).getTime()) / 86_400_000 + 1) / 7)}`,
+    );
+
+    let completions = 0;
+    for (let d = 0; d < 7; d++) {
+      const day = new Date(weekStart);
+      day.setDate(day.getDate() + d);
+      completions += analytics?.heatmap?.[day.toLocaleDateString("en-CA")] ?? 0;
+    }
+    const maxPerDay = Math.max(1, analytics?.streaks?.length ?? 1);
+    values.push(Math.min(100, Math.round((completions / (7 * maxPerDay)) * 100)));
+  }
 
   return (
     <Card className="flex flex-col p-6 bg-zinc-950 border-zinc-800/80 mt-6 relative overflow-hidden">
@@ -69,7 +75,7 @@ export function CompletionTrendWidget() {
               points={values.map((v, i) => `${(i / 11) * 100},${100 - v}`).join(" ")}
             />
           </svg>
-          
+
           {/* HTML Dots to perfectly preserve circular aspect ratio */}
           <div className="absolute inset-0 pointer-events-none">
             {values.map((v, i) => (

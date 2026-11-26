@@ -2,9 +2,9 @@
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, "");
 
 export const BACKEND_API_URL = trimTrailingSlash(
-  import.meta.env.VITE_BACKEND_API_URL ?? "http://localhost:5000/api/v1",
+  import.meta.env["VITE_BACKEND_API_URL"] ?? "http://localhost:5000/api/v1",
 );
 
 export const RUNNER_API_URL = trimTrailingSlash(
-  import.meta.env.VITE_RUNNER_API_URL ?? "http://localhost:8000/api",
+  import.meta.env["VITE_RUNNER_API_URL"] ?? "http://localhost:8000/api",
 );

@@ -1,9 +1,10 @@
 fastapi
 uvicorn
 requests
-google-genai
+ollama
+apscheduler
+numpy
 pydantic
 python-dotenv
 tenacity
 pytest
-redis

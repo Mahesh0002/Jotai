@@ -29,7 +29,7 @@ export function TaskBarChart({ period }: { period: Period }) {
         {displayItems.length === 0 && (
           <div className="w-full text-center text-xs text-zinc-500 mb-4">No tasks found</div>
         )}
-        
+
         {displayItems.map((item, i) => (
           <div key={item.label || i} className="flex flex-col items-center gap-3">
             <span className="text-xs font-bold text-white">{item.percent}%</span>
@@ -49,7 +49,9 @@ export function TaskBarChart({ period }: { period: Period }) {
               <span className="text-[10px] font-medium text-zinc-400 whitespace-pre-line leading-tight h-6 line-clamp-2 w-12 truncate">
                 {item.label}
               </span>
-              <span className="text-[9px] text-zinc-500 mt-1">{item.completed} / {item.total}</span>
+              <span className="text-[9px] text-zinc-500 mt-1">
+                {item.completed} / {item.total}
+              </span>
             </div>
           </div>
         ))}

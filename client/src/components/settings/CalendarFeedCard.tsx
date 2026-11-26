@@ -25,7 +25,9 @@ export function CalendarFeedCard() {
       await queryClient.invalidateQueries({ queryKey: ["preferences"] });
       toast.success("Calendar feed saved");
     } catch (error) {
-      toast.error(`Could not save calendar feed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      toast.error(
+        `Could not save calendar feed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   };
 
@@ -43,7 +45,7 @@ export function CalendarFeedCard() {
       <Input
         value={url}
         onChange={(event) => setUrl(event.target.value)}
-        placeholder="https://…/calendar.ics"
+        placeholder="/absolute/path/to/jotai-calendar.ics"
         aria-label="Calendar ICS URL"
         className="h-9 border-zinc-800 bg-zinc-950 text-xs text-zinc-200"
       />

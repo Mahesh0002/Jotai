@@ -1,4 +1,14 @@
-import { Calendar, Check, Minus, RefreshCw, Trash2, X, ChevronRight, Music, Github } from "lucide-react";
+import {
+  Calendar,
+  Check,
+  Minus,
+  RefreshCw,
+  Trash2,
+  X,
+  ChevronRight,
+  Music,
+  Github,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SpotifyPanel } from "./SpotifyPanel";
 import { GitHubPanel } from "./GitHubPanel";
@@ -43,25 +53,36 @@ function CalendarPanel() {
           <span className="text-[10px] text-zinc-500">Connected account</span>
           <span className="text-[11px] font-medium text-zinc-200">mahesh@example.com</span>
         </div>
-        <Button variant="outline" className="h-7 border-zinc-700 bg-transparent text-[10px] font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white px-3">
+        <Button
+          variant="outline"
+          className="h-7 border-zinc-700 bg-transparent text-[10px] font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white px-3"
+        >
           Change
         </Button>
       </div>
 
       <div className="flex flex-col mb-8 pb-8 border-b border-zinc-800/50">
-        <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-4">Permissions</h4>
+        <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-4">
+          Permissions
+        </h4>
         <div className="flex flex-col gap-3">
           {CALENDAR_PERMISSIONS.map((p, i) => (
             <div key={i} className="flex items-center justify-between">
               <span className="text-[11px] text-zinc-300">{p.name}</span>
-              {p.state === "allow" ? <Check className="h-3.5 w-3.5 text-emerald-500 stroke-[3]" /> : <Minus className="h-3.5 w-3.5 text-zinc-500 stroke-[3]" />}
+              {p.state === "allow" ? (
+                <Check className="h-3.5 w-3.5 text-emerald-500 stroke-[3]" />
+              ) : (
+                <Minus className="h-3.5 w-3.5 text-zinc-500 stroke-[3]" />
+              )}
             </div>
           ))}
         </div>
       </div>
 
       <div className="flex flex-col mb-8 pb-8 border-b border-zinc-800/50">
-        <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-4">Sync Settings</h4>
+        <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-4">
+          Sync Settings
+        </h4>
         <div className="flex flex-col gap-3">
           {CALENDAR_SETTINGS.map((s, i) => (
             <div key={i} className="flex items-center justify-between cursor-pointer group">
@@ -76,7 +97,9 @@ function CalendarPanel() {
       </div>
 
       <div className="flex flex-col mb-8">
-        <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-4">Status</h4>
+        <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-4">
+          Status
+        </h4>
         <div className="flex flex-col gap-3 mb-5">
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-zinc-400">Last synced</span>
@@ -94,7 +117,10 @@ function CalendarPanel() {
             </div>
           </div>
         </div>
-        <Button variant="outline" className="w-full h-8 border-zinc-700 bg-zinc-800/50 text-[11px] font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white">
+        <Button
+          variant="outline"
+          className="w-full h-8 border-zinc-700 bg-zinc-800/50 text-[11px] font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white"
+        >
           <RefreshCw className="mr-2 h-3.5 w-3.5" /> Sync Now
         </Button>
       </div>
@@ -105,7 +131,9 @@ function CalendarPanel() {
             <Trash2 className="h-3.5 w-3.5 text-red-500" />
             <span className="text-[11px] font-semibold text-red-500">Disconnect Integration</span>
           </div>
-          <span className="text-[10px] text-zinc-500 pl-5.5">This will stop syncing data from Google Calendar.</span>
+          <span className="text-[10px] text-zinc-500 pl-5.5">
+            This will stop syncing data from Google Calendar.
+          </span>
         </div>
       </div>
     </>
@@ -116,14 +144,20 @@ export function IntegrationSidebar({ selectedIntegration, onClose, onConnectionC
   if (!selectedIntegration) return null;
 
   const title =
-    selectedIntegration === "Spotify" ? "Spotify" :
-    selectedIntegration === "GitHub" ? "GitHub" :
-    selectedIntegration;
+    selectedIntegration === "Spotify"
+      ? "Spotify"
+      : selectedIntegration === "GitHub"
+        ? "GitHub"
+        : selectedIntegration;
 
   const icon =
-    selectedIntegration === "Spotify" ? <Music className="h-5 w-5 text-emerald-400" /> :
-    selectedIntegration === "GitHub" ? <Github className="h-5 w-5 text-zinc-200" /> :
-    <Calendar className="h-5 w-5 text-blue-400" />;
+    selectedIntegration === "Spotify" ? (
+      <Music className="h-5 w-5 text-emerald-400" />
+    ) : selectedIntegration === "GitHub" ? (
+      <Github className="h-5 w-5 text-zinc-200" />
+    ) : (
+      <Calendar className="h-5 w-5 text-blue-400" />
+    );
 
   return (
     <div className="flex w-[360px] shrink-0 flex-col overflow-y-auto custom-scrollbar p-6 border-l border-zinc-800/50 bg-zinc-950/70">

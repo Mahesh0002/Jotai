@@ -32,9 +32,9 @@ function LoginRoute() {
       };
       setError(
         axiosError.response?.data?.error ??
-        axiosError.response?.data?.message ??
-        axiosError.message ??
-        "Authentication failed",
+          axiosError.response?.data?.message ??
+          axiosError.message ??
+          "Authentication failed",
       );
     } finally {
       setLoading(false);
@@ -68,11 +68,11 @@ function LoginRoute() {
             />
           ) : null}
           <Input
-            type="email"
+            type="text"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            placeholder="Email"
-            aria-label="Email"
+            placeholder="Email or username"
+            aria-label="Email or username"
             required
             className="h-10 border-zinc-800 bg-zinc-950 text-sm"
           />

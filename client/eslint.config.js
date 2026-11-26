@@ -34,6 +34,8 @@ export default tseslint.config(
       ],
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
+      // Boundary code (API adapter, dynamic payloads) intentionally uses `any`.
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
   eslintPluginPrettier,

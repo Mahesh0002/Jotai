@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 import { HabitList } from "@/components/habits/HabitList";
 import { HabitScoreWidget } from "@/components/habits/widgets/HabitScoreWidget";
@@ -158,9 +158,15 @@ function HabitsRoute() {
           <HabitManageTab
             habits={habits}
             onEdit={openEditModal}
-            onDelete={(id) => deleteHabit.mutateAsync(id)}
-            onDuplicate={(habit) => duplicateHabit.mutateAsync(habit)}
-            onUpdateStatus={(id, status) => updateHabitStatus.mutateAsync({ id, status })}
+            onDelete={async (id) => {
+              await deleteHabit.mutateAsync(id);
+            }}
+            onDuplicate={async (habit) => {
+              await duplicateHabit.mutateAsync(habit);
+            }}
+            onUpdateStatus={async (id, status) => {
+              await updateHabitStatus.mutateAsync({ id, status });
+            }}
           />
         )}
       </div>

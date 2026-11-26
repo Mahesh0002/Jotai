@@ -344,7 +344,10 @@ export function FocusTimerWidget({
     >
       <div className="flex h-full min-h-[250px] flex-col items-center justify-between py-4 px-2">
         <div className="flex-1 flex flex-col items-center justify-center w-full py-8">
-          <div className="timer-ring" style={{ "--timer-progress": progress } as React.CSSProperties}>
+          <div
+            className="timer-ring"
+            style={{ "--timer-progress": progress } as React.CSSProperties}
+          >
             <div className="timer-core">
               <span className="section-eyebrow">{running ? "IN SESSION" : "READY"}</span>
               <span className="mt-1 font-mono text-4xl font-medium tabular-nums tracking-tight text-foreground">

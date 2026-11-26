@@ -50,7 +50,7 @@ export function useFocusBlocks(filters?: { start?: string; end?: string }) {
 
   const completeBlock = useMutation({
     mutationFn: ({ id, completeTask }: { id: string; completeTask?: boolean }) =>
-      focusApi.complete(id, completeTask),
+      focusApi.complete(id, { completeTask }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["focusBlocks"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] }); // Because task might be updated

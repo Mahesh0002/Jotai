@@ -59,15 +59,17 @@ export function FocusWaveform({ progress, isPlaying, analyser }: FocusWaveformPr
         analyser.getByteTimeDomainData(dataArray as any);
         const step = Math.floor(dataArray.length / POINT_COUNT);
         for (let i = 0; i < POINT_COUNT; i++) {
-          const normalized = (dataArray[i * step] - 128) / 128;
-          points[i].target = normalized * (height * 0.4);
+          const normalized = ((dataArray[i * step] ?? 128) - 128) / 128;
+          const point = points[i];
+          if (point) point.target = normalized * (height * 0.4);
         }
       } else {
         // Idle state: very subtle sine wave breathing
         phaseRef.current += 0.02;
         for (let i = 0; i < POINT_COUNT; i++) {
           const v = Math.sin(phaseRef.current + i * 0.4) * 0.05;
-          points[i].target = v * (height * 0.3);
+          const point = points[i];
+          if (point) point.target = v * (height * 0.3);
         }
       }
 

@@ -24,18 +24,20 @@ export function AiObservationCard() {
   // Create smooth bezier curve path
   const linePath = points.reduce((acc, point, i, a) => {
     if (i === 0) return `M ${point.x},${point.y}`;
-    const cx1 = a[i - 1].x + (point.x - a[i - 1].x) / 3;
-    const cy1 = a[i - 1].y;
-    const cx2 = point.x - (point.x - a[i - 1].x) / 3;
+    const previous = a[i - 1]!;
+    const cx1 = previous.x + (point.x - previous.x) / 3;
+    const cy1 = previous.y;
+    const cx2 = point.x - (point.x - previous.x) / 3;
     const cy2 = point.y;
     return `${acc} C ${cx1},${cy1} ${cx2},${cy2} ${point.x},${point.y}`;
   }, "");
 
-  const areaPath = `${linePath} L ${points[points.length - 1].x},${height - paddingY} L ${points[0].x},${height - paddingY} Z`;
+  const lastPoint = points[points.length - 1]!;
+  const firstPoint = points[0]!;
+  const areaPath = `${linePath} L ${lastPoint.x},${height - paddingY} L ${firstPoint.x},${height - paddingY} Z`;
 
   // Find the peak for the floating pill
-  const peakIndex = 3; // corresponds roughly to 10-11 AM
-  const peak = points[peakIndex];
+  const peak = points[3] ?? firstPoint;
 
   return (
     <div className="flex rounded-xl border border-zinc-800 bg-zinc-950/50 p-6 shadow-sm relative h-[280px]">

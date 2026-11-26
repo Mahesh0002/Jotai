@@ -1,59 +1,52 @@
-import React from "react";
-import { Card } from "@/components/ui/Card";
-import { ArrowRight, Activity, CheckSquare, Clock, Brain } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { ArrowRight, Activity } from "lucide-react";
+import { useHabitAnalytics } from "@/hooks/useHabits";
 
+/** Shows only locally computed habit data; no invented correlations. */
 export function HabitImpactWidget() {
-  // We'll mock this data as the backend doesn't currently correlate habits with tasks/focus in analytics
-  const impacts = [
-    {
-      icon: <Activity className="w-3.5 h-3.5 text-emerald-500" />,
-      name: "Exercise",
-      metric: "Focus Quality",
-      lift: "+18%",
-    },
-    {
-      icon: <CheckSquare className="w-3.5 h-3.5 text-amber-500" />,
-      name: "Morning Planning",
-      metric: "Task Completion",
-      lift: "+24%",
-    },
-    {
-      icon: <Clock className="w-3.5 h-3.5 text-blue-400" />,
-      name: "Reading",
-      metric: "Focus Duration",
-      lift: "+7%",
-    },
-    {
-      icon: <Brain className="w-3.5 h-3.5 text-purple-400" />,
-      name: "Meditation",
-      metric: "Session Quality",
-      lift: "+11%",
-    },
-  ];
+  const { analytics } = useHabitAnalytics();
+  const streaks = (analytics?.streaks ?? []).slice(0, 5);
 
   return (
-    <Card className="flex flex-col p-5 bg-zinc-950 border-zinc-800/80 h-full relative">
-      <h2 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-5">
-        Habit Impact
+    <Card className="relative flex h-full flex-col border-zinc-800/80 bg-zinc-950 p-5">
+      <h2 className="mb-5 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+        Habit momentum
       </h2>
-
-      <div className="flex flex-col gap-4 flex-1">
-        {impacts.map((impact, i) => (
-          <div key={i} className="flex justify-between items-center">
-            <div className="flex gap-3 items-start">
-              <div className="mt-0.5">{impact.icon}</div>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-white">{impact.name}</span>
-                <span className="text-[10px] text-zinc-500">{impact.metric}</span>
+      <div className="flex flex-1 flex-col gap-4">
+        {streaks.map((habit) => (
+          <div key={habit.habitId} className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="text-sm">{habit.icon}</span>
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate text-xs font-bold text-white">{habit.name}</span>
+                <span className="text-[10px] text-zinc-500">Current streak</span>
               </div>
             </div>
-            <span className="text-xs font-bold text-emerald-500">{impact.lift}</span>
+            <span className="shrink-0 text-xs font-bold text-emerald-500">
+              {habit.currentStreak}d
+            </span>
           </div>
         ))}
+        {streaks.length === 0 && (
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+            <Activity className="size-5 text-zinc-600" />
+            <p className="text-[11px] text-zinc-500">
+              Complete habits to build local momentum data.
+            </p>
+          </div>
+        )}
       </div>
-
-      <button className="flex items-center text-[10px] text-purple-400 hover:text-purple-300 mt-4 pt-4 border-t border-zinc-800/50 transition-colors w-max">
-        View full analysis <ArrowRight className="ml-1 h-3 w-3" />
+      <button
+        onClick={() =>
+          window.dispatchEvent(
+            new CustomEvent("open-ai-assistant", {
+              detail: "How are my habits affecting my productivity?",
+            }),
+          )
+        }
+        className="mt-4 flex w-max items-center border-t border-zinc-800/50 pt-4 text-[10px] text-purple-400 transition-colors hover:text-purple-300"
+      >
+        Ask the assistant <ArrowRight className="ml-1 size-3" />
       </button>
     </Card>
   );

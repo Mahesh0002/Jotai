@@ -9,9 +9,9 @@ export function LevelProgression() {
     const height = 150;
     const step = width / (data.length - 1);
 
-    let path = `M 0 ${height - (data[0] / max) * height}`;
+    let path = `M 0 ${height - ((data[0] ?? 0) / max) * height}`;
     for (let i = 1; i < data.length; i++) {
-      path += ` L ${i * step} ${height - (data[i] / max) * height}`;
+      path += ` L ${i * step} ${height - ((data[i] ?? 0) / max) * height}`;
     }
     return path;
   };

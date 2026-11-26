@@ -4,7 +4,9 @@ const express = require('express');
 const request = require('supertest');
 const bcrypt = require('bcryptjs');
 
-const User = require('../src/models/User');
+const { setupTestDb } = require('./helpers/testDb');
+const { db, cleanup } = setupTestDb('auth');
+
 const authRoutes = require('../src/routes/authRoutes');
 const { contextMiddleware } = require('../src/middlewares/requestContext');
 const errorHandler = require('../src/middlewares/errorHandler');
@@ -12,61 +14,46 @@ const errorHandler = require('../src/middlewares/errorHandler');
 function buildApp() {
   const app = express();
   app.use(express.json());
+  app.use(contextMiddleware);
   app.use('/auth', contextMiddleware, authRoutes);
   app.use(errorHandler);
   return app;
 }
 
-test('register sets an HTTP-only cookie and /me reads it', async () => {
-  const originalFind = User.findOne;
-  const originalCreate = User.create;
-  User.findOne = async () => null;
-  User.create = async (doc) => ({ _id: 'user-1', ...doc });
+test('local login sets an HTTP-only cookie and /me reads it', async () => {
+  const app = buildApp();
+  const login = await request(app).post('/auth/login').send({});
+  assert.strictEqual(login.status, 200);
+  const cookie = login.headers['set-cookie'][0];
+  assert.match(cookie, /jotai_token=/);
+  assert.match(cookie, /HttpOnly/i);
 
-  try {
-    const app = buildApp();
-    const registered = await request(app)
-      .post('/auth/register')
-      .send({ email: 'runner@example.com', password: 'password123', username: 'runner' });
-    assert.strictEqual(registered.status, 201);
-    const cookie = registered.headers['set-cookie'][0];
-    assert.match(cookie, /jotai_token=/);
-    assert.match(cookie, /HttpOnly/i);
-
-    const me = await request(app).get('/auth/me').set('Cookie', cookie);
-    assert.strictEqual(me.body.data.id, 'user-1');
-    assert.strictEqual(me.body.data.username, 'runner');
-  } finally {
-    User.findOne = originalFind;
-    User.create = originalCreate;
-  }
+  const me = await request(app).get('/auth/me').set('Cookie', cookie);
+  assert.strictEqual(me.status, 200);
+  assert.strictEqual(me.body.data.id, 'local_user');
+  assert.ok(me.body.data.username);
 });
 
 test('login rejects a wrong password and accepts the right one', async () => {
-  const originalFind = User.findOne;
   const passwordHash = await bcrypt.hash('password123', 4);
-  User.findOne = async () => ({
-    _id: 'user-2',
-    username: 'runner',
-    email: 'runner@example.com',
-    passwordHash,
-  });
+  db.run(
+    `INSERT INTO users (id, display_name, username, email, password_hash, chronotype, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ['user-2', 'Runner', 'runner', 'runner@example.com', passwordHash, 'unknown', new Date().toISOString()]
+  );
 
-  try {
-    const app = buildApp();
-    const wrong = await request(app)
-      .post('/auth/login')
-      .send({ email: 'runner@example.com', password: 'wrong-password' });
-    assert.strictEqual(wrong.status, 401);
+  const app = buildApp();
+  const wrong = await request(app)
+    .post('/auth/login')
+    .send({ email: 'runner@example.com', password: 'wrong-password' });
+  assert.strictEqual(wrong.status, 401);
 
-    const right = await request(app)
-      .post('/auth/login')
-      .send({ email: 'runner@example.com', password: 'password123' });
-    assert.strictEqual(right.status, 200);
-    assert.match(right.headers['set-cookie'][0], /HttpOnly/i);
-  } finally {
-    User.findOne = originalFind;
-  }
+  const right = await request(app)
+    .post('/auth/login')
+    .send({ email: 'runner@example.com', password: 'password123' });
+  assert.strictEqual(right.status, 200);
+  assert.strictEqual(right.body.data.id, 'user-2');
+  assert.match(right.headers['set-cookie'][0], /HttpOnly/i);
 });
 
 test('logout clears the auth cookie', async () => {
@@ -74,3 +61,5 @@ test('logout clears the auth cookie', async () => {
   assert.strictEqual(response.status, 200);
   assert.match(response.headers['set-cookie'][0], /jotai_token=;/);
 });
+
+test.after(cleanup);

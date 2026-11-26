@@ -34,3 +34,10 @@ dist-ssr
 
 .tanstack/
 client/.tanstack/
+
+# Local runtime data
+*.db
+*.db-shm
+*.db-wal
+backend/data/
+data/

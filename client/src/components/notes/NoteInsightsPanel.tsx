@@ -21,7 +21,7 @@ import { useNotes } from "@/contexts/NotesContext";
 
 export function NoteInsightsPanel() {
   const { activeNoteId, notes } = useNotes();
-  const activeNote = notes.find((n) => n.id === activeNoteId);
+  const activeNote = notes.find((n) => n._id === activeNoteId);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
   const simulateAiAction = (actionName: string) => {

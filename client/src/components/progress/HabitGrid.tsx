@@ -23,7 +23,7 @@ export function HabitGrid({ period }: { period: Period }) {
   }, [localPeriod]);
 
   const numDays = localPeriod === "week" ? 7 : 30;
-  
+
   // Generate date labels
   const dateLabels = Array.from({ length: numDays }, (_, i) => {
     const d = subDays(new Date(), numDays - 1 - i);
@@ -41,15 +41,15 @@ export function HabitGrid({ period }: { period: Period }) {
           <Info className="h-3.5 w-3.5 text-zinc-600" />
         </div>
         <div className="flex rounded-md border border-zinc-800 bg-zinc-900/50 p-0.5">
-          <button 
+          <button
             onClick={() => setLocalPeriod("week")}
-            className={`rounded px-3 py-1 text-[10px] font-bold transition-colors ${localPeriod === 'week' ? 'text-white bg-zinc-800 shadow-sm' : 'text-zinc-500 hover:text-white'}`}
+            className={`rounded px-3 py-1 text-[10px] font-bold transition-colors ${localPeriod === "week" ? "text-white bg-zinc-800 shadow-sm" : "text-zinc-500 hover:text-white"}`}
           >
             Weekly
           </button>
-          <button 
+          <button
             onClick={() => setLocalPeriod("month")}
-            className={`rounded px-3 py-1 text-[10px] font-bold transition-colors ${localPeriod === 'month' ? 'text-white bg-zinc-800 shadow-sm' : 'text-zinc-500 hover:text-white'}`}
+            className={`rounded px-3 py-1 text-[10px] font-bold transition-colors ${localPeriod === "month" ? "text-white bg-zinc-800 shadow-sm" : "text-zinc-500 hover:text-white"}`}
           >
             Monthly
           </button>
@@ -62,7 +62,10 @@ export function HabitGrid({ period }: { period: Period }) {
           {/* Day Labels */}
           <div className="flex mb-3 pl-[140px]">
             {dateLabels.map((label, i) => (
-              <div key={i} className="w-[18px] shrink-0 text-center text-[10px] font-medium text-zinc-500 mx-[2px]">
+              <div
+                key={i}
+                className="w-[18px] shrink-0 text-center text-[10px] font-medium text-zinc-500 mx-[2px]"
+              >
                 {label}
               </div>
             ))}
@@ -71,12 +74,16 @@ export function HabitGrid({ period }: { period: Period }) {
           {/* Habits Rows */}
           <div className="flex flex-col gap-3">
             {data.length === 0 && (
-              <div className="pl-[140px] text-xs text-zinc-500">No habits tracked in this period.</div>
+              <div className="pl-[140px] text-xs text-zinc-500">
+                No habits tracked in this period.
+              </div>
             )}
             {data.map((habit) => (
               <div key={habit.id} className="flex items-center">
                 <div className="w-[140px] shrink-0 flex items-center justify-between pr-4 sticky left-0 bg-zinc-950/90 z-10">
-                  <span className="text-[11px] font-medium text-zinc-300 truncate">{habit.name}</span>
+                  <span className="text-[11px] font-medium text-zinc-300 truncate">
+                    {habit.name}
+                  </span>
                   <div className="flex items-center gap-1 text-[10px] font-bold text-amber-500 shrink-0 pl-2">
                     <Flame className="h-3 w-3 fill-amber-500" /> {habit.streak}
                   </div>

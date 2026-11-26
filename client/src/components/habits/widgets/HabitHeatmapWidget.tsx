@@ -1,5 +1,5 @@
 import React from "react";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/card";
 import { useHabitAnalytics } from "@/hooks/useHabits";
 import { ChevronDown } from "lucide-react";
 
@@ -17,20 +17,19 @@ export function HabitHeatmapWidget() {
     );
   }
 
-  // Generate last 30 days for heatmap (approx 4 weeks + a few days)
+  // Last 90 real calendar days; values come from local completion records.
   const today = new Date();
-
-  // To match the UI closely, we typically want a grid of weeks and days.
-  // We'll just generate a flat array of the last 30 days and let it wrap,
-  // or build a tiny grid. The image shows a full 12-month style, but we only have 30 days data.
-  // The mockup shows "Habit Activity" with dropdown "Last 3 Months".
-  // We'll simulate a dense grid.
-
-  const days = Array.from({ length: 90 }).map((_, i) => {
+  const dates = Array.from({ length: 90 }, (_, i) => {
     const d = new Date(today);
     d.setDate(d.getDate() - (89 - i));
-    return d.toLocaleDateString("en-CA");
+    return d;
   });
+  const days = dates.map((d) => d.toLocaleDateString("en-CA"));
+  const monthLabels: string[] = [];
+  for (const date of dates) {
+    const label = date.toLocaleDateString(undefined, { month: "short" });
+    if (monthLabels[monthLabels.length - 1] !== label) monthLabels.push(label);
+  }
 
   return (
     <Card className="flex flex-col p-5 bg-zinc-950 border-zinc-800/80 h-full">
@@ -38,17 +37,18 @@ export function HabitHeatmapWidget() {
         <h2 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
           Habit Activity
         </h2>
-        <button className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-900 px-2 py-1 rounded border border-zinc-800 hover:text-white transition-colors">
+        <span className="flex items-center gap-1 rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-[10px] text-zinc-400">
           Last 3 Months <ChevronDown className="h-3 w-3" />
-        </button>
+        </span>
       </div>
 
       <div className="flex-1 flex flex-col justify-between">
-        <div className="flex gap-2 text-[9px] text-zinc-600 mb-2 pl-6">
-          <span className="flex-1">May</span>
-          <span className="flex-1">Jun</span>
-          <span className="flex-1">Jul</span>
-          <span className="flex-1">Aug</span>
+        <div className="mb-2 flex gap-2 pl-6 text-[9px] text-zinc-600">
+          {monthLabels.map((label, i) => (
+            <span key={`${label}-${i}`} className="flex-1">
+              {label}
+            </span>
+          ))}
         </div>
 
         <div className="flex gap-2">
